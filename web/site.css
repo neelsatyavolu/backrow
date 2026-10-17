@@ -208,6 +208,10 @@ code{font:13px var(--mono);color:var(--fg);background:var(--surface);padding:1px
 .pc.locked .pc-track{cursor:not-allowed}
 .pc-track:focus:not(:focus-visible){outline:none}
 .live-badge{position:absolute;left:16px;top:14px;z-index:3;font:12px var(--mono);letter-spacing:.06em;text-transform:uppercase;background:rgba(14,14,13,.7);padding:6px 10px;display:flex;gap:8px;align-items:center;color:#F2F0EA}
+/* Shown with the player controls: while the pointer is over the video and not idle. */
+.live-badge{opacity:0;transition:opacity 250ms var(--ease);pointer-events:none}
+.screen:hover:not(.pc-hide-cursor) .live-badge{opacity:1}
+@media (hover:none){.live-badge{opacity:1}}
 .live-badge::before{content:"";width:6px;height:6px;border-radius:50%;background:#4C8DFF}
 .stage:fullscreen{background:#000}
 .gate .drop{border-color:var(--border-strong)}

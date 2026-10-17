@@ -46,6 +46,10 @@ function avatar(m: Pick<Member, "name" | "color" | "photo">, host = false, cls =
   return a;
 }
 
+/** How long a chat toast stays up, unless it is hovered or being replied to. */
+const CHAT_TOAST_MS = 6000;
+const CHAT_TOASTS_MAX = 3;
+
 const clock = (at: number) => new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
 export class ChatPanel {
@@ -65,6 +69,7 @@ export class ChatPanel {
   private photoError!: El;
   private input!: HTMLTextAreaElement;
   private floats!: El;
+  private chatToasts!: El;
   private snap: RoomSnapshot | null = null;
   private lastFrom: string | null = null;
   private typers = new Map<string, { name: string; timer: ReturnType<typeof setTimeout> }>();
@@ -162,7 +167,9 @@ export class ChatPanel {
     this.tab.onclick = () => this.setOpen(true);
     this.floats = h("div", this.opts.docked ? "floats full" : "floats");
     if (this.opts.docked) this.floats.style.right = "var(--panel-w)";
-    this.host.append(this.floats, panel, this.tab);
+    this.chatToasts = h("div", "chat-toasts");
+    this.chatToasts.setAttribute("aria-live", "polite");
+    this.host.append(this.floats, panel, this.tab, this.chatToasts);
     this.renderStatus("connecting");
     this.renderEmpty();
   }
@@ -262,6 +269,7 @@ export class ChatPanel {
     if (open) {
       this.unread = 0;
       this.renderTab();
+      this.chatToasts.replaceChildren();
     }
   }
 
@@ -313,6 +321,57 @@ export class ChatPanel {
     const t = h("div", "toast", text);
     this.host.append(t);
     setTimeout(() => t.remove(), 2200);
+  }
+
+  /** A message that arrived while the chat is hidden, with a reply field. */
+  private chatToast(entry: ChatEntry): void {
+    const card = h("div", "chat-toast");
+    const body = h("button", "ct-body");
+    body.type = "button";
+    body.title = "Open the chat";
+    const who = h("div", "who");
+    who.append(h("span", "name", entry.name), h("span", "time", clock(entry.at)));
+    body.append(avatar(entry), who, h("div", "text", entry.text));
+    body.onclick = () => this.setOpen(true);
+
+    // A form, so Enter submits even where the content script swallows keydown.
+    const form = h("form", "ct-reply");
+    const input = h("input", "field");
+    input.placeholder = `Reply to ${entry.name}`;
+    input.maxLength = CHAT_MAX;
+    input.setAttribute("aria-label", `Reply to ${entry.name}`);
+    form.append(input);
+    card.append(body, form);
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const dismiss = () => {
+      if (timer) clearTimeout(timer);
+      card.classList.add("out");
+      setTimeout(() => card.remove(), 200);
+    };
+    // Stays up while hovered, focused or holding an unsent reply.
+    const arm = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => (card.matches(":hover, :focus-within") || input.value ? arm() : dismiss()), CHAT_TOAST_MS);
+    };
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      this.actions.sendChat(text);
+      this.stopTyping();
+      dismiss();
+    };
+    input.addEventListener("input", () => this.onType());
+    input.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Escape") dismiss();
+    });
+    for (const type of ["keyup", "keypress"]) input.addEventListener(type, (e) => e.stopPropagation());
+
+    this.chatToasts.append(card);
+    while (this.chatToasts.children.length > CHAT_TOASTS_MAX) this.chatToasts.firstElementChild?.remove();
+    arm();
   }
 
   renderStatus(status: ConnectionStatus): void {
@@ -444,6 +503,7 @@ export class ChatPanel {
         if (!this.isOpen && e.entry.from !== prev?.you) {
           this.unread++;
           this.renderTab();
+          this.chatToast(e.entry);
         }
         break;
       }
