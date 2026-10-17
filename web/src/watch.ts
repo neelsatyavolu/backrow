@@ -380,9 +380,8 @@ async function startViewer(party: Party, profile: Profile): Promise<void> {
     },
     resume: () => {
       if (!video.srcObject || !(video.paused || autoMuted)) return false;
-      autoMuted = false;
-      video.muted = false;
-      void video.play().then(() => ui.setStatus(null), () => ui.setStatus("Click to start the video"));
+      if (autoMuted) soundOn();
+      else void video.play().then(() => ui.setStatus(null), () => ui.setStatus("Click to start the video"));
       return true;
     },
   });
@@ -402,6 +401,17 @@ async function startViewer(party: Party, profile: Profile): Promise<void> {
         ui.setStatus("Click to start the video");
       });
     });
+  // Unmuting a stream that started muted can leave its sound out of step with
+  // the picture, so the stream is re-attached and starts with sound instead.
+  const soundOn = () => {
+    autoMuted = false;
+    const stream = video.srcObject;
+    video.srcObject = null;
+    video.muted = false;
+    video.srcObject = stream;
+    debug("sound on", { reattached: !!stream });
+    void video.play().then(() => ui.setStatus(null), () => ui.setStatus("Click to start the video"));
+  };
 
   debug("viewer ready", { ice: iceKinds(ice) });
   const viewer = new StreamViewer(client, ice, (stream) => {
@@ -424,10 +434,7 @@ async function startViewer(party: Party, profile: Profile): Promise<void> {
   }
   video.addEventListener("playing", () => !autoMuted && ui.setStatus(null));
   video.addEventListener("volumechange", () => {
-    if (autoMuted && !video.muted) {
-      autoMuted = false;
-      ui.setStatus(null);
-    }
+    if (autoMuted && !video.muted) soundOn();
   });
   // Headphones and speakers add their own delay on top of the stream's, which
   // WebRTC's lip sync doesn't see. Logged once, after sound is on.
