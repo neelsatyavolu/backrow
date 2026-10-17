@@ -76,6 +76,8 @@ export class ChatPanel {
   private typingSent = 0;
   private typingStop: ReturnType<typeof setTimeout> | null = null;
   private unread = 0;
+  /** Messages counted as unread so far, so a reply can mark older ones read. */
+  private unreadSeq = 0;
   private profile: Profile;
 
   constructor(
@@ -324,7 +326,7 @@ export class ChatPanel {
   }
 
   /** A message that arrived while the chat is hidden, with a reply field. */
-  private chatToast(entry: ChatEntry): void {
+  private chatToast(entry: ChatEntry, seq: number): void {
     const card = h("div", "chat-toast");
     const body = h("button", "ct-body");
     body.type = "button";
@@ -360,6 +362,9 @@ export class ChatPanel {
       if (!text) return;
       this.actions.sendChat(text);
       this.stopTyping();
+      // Replying reads this message and the ones before it; newer ones stay unread.
+      this.unread = Math.min(this.unread, this.unreadSeq - seq);
+      this.renderTab();
       dismiss();
     };
     input.addEventListener("input", () => this.onType());
@@ -502,8 +507,9 @@ export class ChatPanel {
         this.appendChat(e.entry);
         if (!this.isOpen && e.entry.from !== prev?.you) {
           this.unread++;
+          this.unreadSeq++;
           this.renderTab();
-          this.chatToast(e.entry);
+          this.chatToast(e.entry, this.unreadSeq);
         }
         break;
       }
