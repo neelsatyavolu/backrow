@@ -3,6 +3,7 @@
 // (rtc.ts). Chat, names and controls use the same encrypted party as the
 // extension.
 
+import { decodeCaptions, MAX_CAPTION_BYTES, parseCaptions } from "../../shared/captions";
 import { importKey, newKeyText, openJson, sealJson } from "../../shared/crypto";
 import { PartyClient, type PartyEvent } from "../../shared/party-client";
 import { parseVideo, type Profile } from "../../shared/payload";
@@ -116,6 +117,51 @@ function filePicker(onReady: (file: File) => void): HTMLElement {
   return box;
 }
 
+/** Reads a caption file; throws with a message to show when it isn't usable. */
+async function readCaptions(file: File): Promise<string> {
+  if (file.size > MAX_CAPTION_BYTES) throw new Error("That caption file is too big.");
+  const text = decodeCaptions(new Uint8Array(await file.arrayBuffer()));
+  if (parseCaptions(text).length === 0) throw new Error("No captions found. Use an .srt or .vtt file.");
+  return text;
+}
+
+const CAPTION_TYPES = ".srt,.vtt,text/vtt";
+
+/** Optional caption file picker for the host's setup card. */
+function captionPicker(onLoad: (text: string | null) => void): HTMLElement {
+  const box = el("label", "toggle captions-pick");
+  const input = el("input");
+  input.type = "file";
+  input.accept = CAPTION_TYPES;
+  input.hidden = true;
+  const name = el("span", "", "+ Add captions (.srt or .vtt, optional)");
+  box.append(input, name);
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      onLoad(await readCaptions(file));
+      name.textContent = `Captions · ${file.name}`;
+    } catch (e) {
+      onLoad(null);
+      name.textContent = e instanceof Error ? e.message : "Couldn't read that caption file.";
+    }
+  };
+  return box;
+}
+
+/** Opens a file dialog for a caption file, from the player's CC button. */
+function pickCaptions(onLoad: (text: string) => void, onError: (message: string) => void): void {
+  const input = el("input");
+  input.type = "file";
+  input.accept = CAPTION_TYPES;
+  input.onchange = () => {
+    const file = input.files?.[0];
+    if (file) readCaptions(file).then(onLoad, (e: unknown) => onError(e instanceof Error ? e.message : "Couldn't read that caption file."));
+  };
+  input.click();
+}
+
 function makePanel(client: PartyClient, party: Party, profile: Profile, onLeave: () => void): ChatPanel {
   const host = el("div");
   side.append(host);
@@ -145,7 +191,7 @@ function makePanel(client: PartyClient, party: Party, profile: Profile, onLeave:
 
 // ---------------- Host ----------------
 
-async function startHost(party: Party, profile: Profile, hostKey: string): Promise<void> {
+async function startHost(party: Party, profile: Profile, hostKey: string, captions: string | null): Promise<void> {
   gate.hidden = true;
   // Before connecting: events that arrive while this loads would be missed.
   const ice = await loadIceServers();
@@ -171,13 +217,28 @@ async function startHost(party: Party, profile: Profile, hostKey: string): Promi
     seek: (s) => {
       video.currentTime = s;
     },
+    addCaptions: () => pickCaptions(setCaptions, (message) => {
+      ui.setStatus(message);
+      setTimeout(() => ui.setStatus(null), 2500);
+    }),
   };
-  new PlayerUI(screen, video, stage, source);
+  const ui = new PlayerUI(screen, video, stage, source);
+  const setCaptions = (text: string | null) => {
+    captions = text;
+    const cues = text ? parseCaptions(text) : [];
+    ui.setCaptions(cues);
+    host?.setCaptions(text);
+    debug("captions", { cues: cues.length });
+  };
+  setCaptions(captions);
 
   debug("host ready", { ice: iceKinds(ice) });
   const ensureStream = (): StreamHost => {
     stream ??= capture();
-    host ??= new StreamHost(client, stream, ice, debug);
+    if (!host) {
+      host = new StreamHost(client, stream, ice, debug);
+      host.setCaptions(captions);
+    }
     return host;
   };
   const updateBadge = () => {
@@ -220,10 +281,12 @@ async function newHostParty(): Promise<void> {
   start.disabled = true;
   const err = el("p", "error");
   let file: File | null = null;
+  let captions: string | null = null;
   const picker = filePicker((f) => {
     file = f;
     start.disabled = false;
   });
+  const captionBox = captionPicker((text) => (captions = text));
   start.onclick = async () => {
     if (!file) return;
     start.disabled = true;
@@ -244,7 +307,7 @@ async function newHostParty(): Promise<void> {
       if (onlyMeBox.checked) store(`backrow:hostonly:${body.roomId}`, "1");
       history.replaceState(null, "", `/watch/${body.roomId}#${keyText}`);
       await video.play().catch(() => undefined);
-      await startHost({ roomId: body.roomId, keyText }, profile, body.hostKey);
+      await startHost({ roomId: body.roomId, keyText }, profile, body.hostKey, captions);
     } catch (e) {
       err.textContent = e instanceof Error ? e.message : "Could not start the party.";
       start.disabled = false;
@@ -255,6 +318,7 @@ async function newHostParty(): Promise<void> {
     el("span", "label", "Stream from your computer"),
     el("p", "title", "Pick a video"),
     picker,
+    captionBox,
     ...form.nodes,
     onlyMe,
     start,
@@ -269,16 +333,19 @@ function resumeHost(party: Party, hostKey: string, media: LocalVideo): void {
   const start = el("button", "btn accent", "Keep streaming");
   start.disabled = true;
   const picker = filePicker(() => (start.disabled = false));
+  let captions: string | null = null;
+  const captionBox = captionPicker((text) => (captions = text));
   start.onclick = async () => {
     start.disabled = true;
     await video.play().catch(() => undefined);
-    await startHost(party, form.commit(), hostKey);
+    await startHost(party, form.commit(), hostKey, captions);
   };
   gateCard.replaceChildren(
     el("span", "label", "You're the host"),
     el("p", "title", "Pick the file again to keep streaming"),
     el("p", "meta", `This party was streaming “${media.name}”.`),
     picker,
+    captionBox,
     ...form.nodes,
     start,
   );
@@ -347,6 +414,10 @@ async function startViewer(party: Party, profile: Profile): Promise<void> {
     } else {
       ui.setStatus("Reconnecting to the host");
     }
+  }, (text) => {
+    const cues = text ? parseCaptions(text) : [];
+    ui.setCaptions(cues);
+    debug("captions", { cues: cues.length });
   }, debug);
   for (const type of ["playing", "waiting", "stalled", "resize"]) {
     video.addEventListener(type, () => debug(`video ${type}`, { size: `${video.videoWidth}x${video.videoHeight}`, paused: video.paused, muted: video.muted }));
@@ -358,6 +429,20 @@ async function startViewer(party: Party, profile: Profile): Promise<void> {
       ui.setStatus(null);
     }
   });
+  // Headphones and speakers add their own delay on top of the stream's, which
+  // WebRTC's lip sync doesn't see. Logged once, after sound is on.
+  let outputLogged = false;
+  const logOutput = () => {
+    if (outputLogged || video.muted || video.paused) return;
+    outputLogged = true;
+    const ac = new AudioContext();
+    setTimeout(() => {
+      debug("audio output", { state: ac.state, baseMs: Math.round(ac.baseLatency * 1000), outputMs: Math.round((ac.outputLatency ?? 0) * 1000) });
+      void ac.close();
+    }, 1000);
+  };
+  video.addEventListener("playing", logOutput);
+  video.addEventListener("volumechange", logOutput);
 
   const ask = () => {
     const room = client.room;

@@ -231,3 +231,11 @@ code{font:13px var(--mono);color:var(--fg);background:var(--surface);padding:1px
 .linkish.danger{color:var(--danger)}
 .account-link{color:var(--fg-3);text-underline-offset:3px}
 .account-link:hover{color:var(--fg)}
+.pc-captions{position:absolute;left:0;right:0;bottom:88px;display:flex;justify-content:center;padding:0 24px;pointer-events:none;transition:bottom 250ms var(--ease)}
+.pc.idle .pc-captions{bottom:32px}
+.pc-captions span{max-width:80%;white-space:pre-line;text-align:center;font:500 clamp(16px,2.4vw,30px)/1.3 var(--sans);color:#F2F0EA;background:rgba(14,14,13,.78);padding:4px 12px}
+.pc-cc{width:auto;padding:0 8px;font:500 12px var(--mono);letter-spacing:.06em;opacity:.6;border-bottom:2px solid transparent}
+.pc-cc.on{opacity:1;border-bottom-color:#4C8DFF}
+.captions-pick{cursor:pointer;font:13px var(--mono)}
+.captions-pick:hover{color:var(--fg)}
+@media (prefers-reduced-motion:reduce){.pc-captions{transition:none}}

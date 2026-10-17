@@ -4,6 +4,7 @@
 // end-to-end encrypted channel, so the server can't swap in its own keys, and
 // the media itself is encrypted between browsers by WebRTC (DTLS-SRTP).
 
+import { MAX_CAPTION_BYTES } from "../../shared/captions";
 import type { PartyClient } from "../../shared/party-client";
 import type { RemoteLog } from "../../shared/remote-log";
 
@@ -16,6 +17,50 @@ const VIDEO_BITRATE = 8_000_000;
 const AUDIO_BITRATE = 192_000;
 /** Extra viewer-side buffering: a little more latency for much smoother playback. */
 const JITTER_TARGET_MS = 400;
+/**
+ * Captions ride a data channel on the same connection, as a header
+ * {"parts": n} followed by n pieces of the caption file (0 parts clears them).
+ * Pieces stay well under every browser's message size limit.
+ */
+const CAPTIONS_CHANNEL = "captions";
+const CAPTION_CHUNK = 16_000;
+const MAX_CAPTION_PARTS = Math.ceil(MAX_CAPTION_BYTES / CAPTION_CHUNK);
+
+function sendCaptions(channel: RTCDataChannel, text: string | null): void {
+  const parts: string[] = [];
+  for (let i = 0; text && i < text.length; i += CAPTION_CHUNK) parts.push(text.slice(i, i + CAPTION_CHUNK));
+  channel.send(JSON.stringify({ parts: parts.length }));
+  for (const part of parts) channel.send(part);
+}
+
+/** Reassembles caption files sent with sendCaptions; bad input is dropped. */
+function receiveCaptions(channel: RTCDataChannel, onCaptions: (text: string | null) => void): void {
+  let expected = 0;
+  let parts: string[] = [];
+  channel.addEventListener("message", (e) => {
+    if (typeof e.data !== "string") return;
+    if (expected > 0) {
+      parts.push(e.data);
+      if (parts.length === expected) {
+        expected = 0;
+        onCaptions(parts.join(""));
+        parts = [];
+      }
+      return;
+    }
+    let header: unknown;
+    try {
+      header = JSON.parse(e.data);
+    } catch {
+      return;
+    }
+    const n = (header as { parts?: unknown } | null)?.parts;
+    if (typeof n !== "number" || !Number.isInteger(n) || n < 0 || n > MAX_CAPTION_PARTS) return;
+    if (n === 0) onCaptions(null);
+    expected = n;
+    parts = [];
+  });
+}
 
 export async function loadIceServers(): Promise<RTCIceServer[]> {
   try {
@@ -62,19 +107,49 @@ function gathered(pc: RTCPeerConnection, timeoutMs = 2500): Promise<void> {
 
 const STATS_MS = 10_000;
 
+type Stat = Record<string, unknown>;
+const num = (v: unknown): number => (typeof v === "number" ? v : 0);
+
+/** Average jitter buffer wait (ms) of one inbound track since the previous sample. */
+function bufferMs(now: Stat | undefined, before: Stat | undefined): number | null {
+  const emitted = num(now?.jitterBufferEmittedCount) - num(before?.jitterBufferEmittedCount);
+  return emitted > 0 ? Math.round((1000 * (num(now?.jitterBufferDelay) - num(before?.jitterBufferDelay))) / emitted) : null;
+}
+
+/**
+ * Viewer-side A/V sync: how long each track waits in its buffer, and the gap
+ * between the two tracks' estimated playout timestamps (video minus audio, ms;
+ * excludes the output device's own delay). Compare it across sessions rather
+ * than reading it as an absolute offset.
+ */
+function syncStats(audio: Stat | undefined, video: Stat | undefined, prev: Map<string, Stat>) {
+  const playout = (s: Stat | undefined) => (typeof s?.estimatedPlayoutTimestamp === "number" ? s.estimatedPlayoutTimestamp : null);
+  const a = playout(audio);
+  const v = playout(video);
+  return {
+    audioBufMs: bufferMs(audio, prev.get("audio")),
+    videoBufMs: bufferMs(video, prev.get("video")),
+    playoutGapMs: a !== null && v !== null ? Math.round(v - a) : null,
+    audioLost: audio?.packetsLost ?? null,
+    audioConcealed: audio ? Math.round((1000 * num(audio.concealedSamples)) / Math.max(1, num(audio.totalSamplesReceived))) / 10 : null,
+  };
+}
+
 /**
  * Logs a connection's state changes, which route it picked (host = direct,
  * srflx = through NAT, relay = TURN) and, while it is up, how much video moves.
  */
 function watchConnection(pc: RTCPeerConnection, peer: string, log: RemoteLog): void {
   let timer: ReturnType<typeof setInterval> | null = null;
+  let prev = new Map<string, Stat>();
   const stats = async () => {
     const report = await pc.getStats().catch(() => null);
     if (!report) return;
-    const all = [...report.values()] as Array<Record<string, unknown>>;
+    const all = [...report.values()] as Stat[];
     const pair = all.find((r) => r.type === "candidate-pair" && r.nominated && r.state === "succeeded");
     const kind = (id: unknown) => all.find((r) => r.id === id)?.candidateType;
     const video = all.find((r) => (r.type === "inbound-rtp" || r.type === "outbound-rtp") && r.kind === "video");
+    const inbound = new Map(all.filter((r) => r.type === "inbound-rtp").map((r) => [String(r.kind), r]));
     log("rtc stats", {
       peer,
       route: pair ? `${kind(pair.localCandidateId)}->${kind(pair.remoteCandidateId)}` : null,
@@ -82,7 +157,9 @@ function watchConnection(pc: RTCPeerConnection, peer: string, log: RemoteLog): v
       frames: video?.framesDecoded ?? video?.framesEncoded ?? null,
       bytes: video?.bytesReceived ?? video?.bytesSent ?? null,
       size: video ? `${video.frameWidth ?? "?"}x${video.frameHeight ?? "?"}` : null,
+      ...(inbound.size ? syncStats(inbound.get("audio"), inbound.get("video"), prev) : {}),
     });
+    prev = inbound;
   };
   pc.addEventListener("iceconnectionstatechange", () => log("ice state", { peer, state: pc.iceConnectionState }));
   pc.addEventListener("connectionstatechange", () => {
@@ -120,6 +197,8 @@ const SETUP_GRACE_MS = 10_000;
 export class StreamHost {
   private peers = new Map<string, RTCPeerConnection>();
   private started = new Map<string, number>();
+  private channels = new Map<string, RTCDataChannel>();
+  private captions: string | null = null;
 
   constructor(
     private readonly client: PartyClient,
@@ -132,6 +211,14 @@ export class StreamHost {
 
   get viewers(): number {
     return [...this.peers.values()].filter((pc) => pc.connectionState === "connected").length;
+  }
+
+  /** Sends the caption file (or null for none) to every viewer, now and later. */
+  setCaptions(text: string | null): void {
+    this.captions = text;
+    for (const channel of this.channels.values()) {
+      if (channel.readyState === "open") sendCaptions(channel, text);
+    }
   }
 
   async onSignal(from: string, data: unknown): Promise<void> {
@@ -161,6 +248,9 @@ export class StreamHost {
       if (track.kind === "video") params.degradationPreference = "balanced";
       transceiver.sender.setParameters(params).catch(() => undefined);
     }
+    const channel = pc.createDataChannel(CAPTIONS_CHANNEL);
+    channel.addEventListener("open", () => this.captions && sendCaptions(channel, this.captions));
+    this.channels.set(to, channel);
     pc.addEventListener("connectionstatechange", () => {
       if (pc.connectionState === "failed" || pc.connectionState === "closed") this.close(to);
     });
@@ -174,6 +264,7 @@ export class StreamHost {
     this.peers.get(id)?.close();
     this.peers.delete(id);
     this.started.delete(id);
+    this.channels.delete(id);
   }
 
   closeAll(): void {
@@ -190,6 +281,7 @@ export class StreamViewer {
     private readonly client: PartyClient,
     private readonly ice: RTCIceServer[],
     private readonly onStream: (stream: MediaStream | null) => void,
+    private readonly onCaptions: (text: string | null) => void,
     private readonly log: RemoteLog = () => undefined,
   ) {}
 
@@ -219,6 +311,9 @@ export class StreamViewer {
       this.log("track", { kind: e.track.kind, muted: e.track.muted });
       if ("jitterBufferTarget" in receiver) receiver.jitterBufferTarget = JITTER_TARGET_MS;
       this.onStream(e.streams[0] ?? new MediaStream([e.track]));
+    });
+    pc.addEventListener("datachannel", (e) => {
+      if (e.channel.label === CAPTIONS_CHANNEL) receiveCaptions(e.channel, (text) => this.pc === pc && this.onCaptions(text));
     });
     pc.addEventListener("connectionstatechange", () => {
       if (this.pc === pc && (pc.connectionState === "failed" || pc.connectionState === "closed")) {

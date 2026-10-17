@@ -1,7 +1,8 @@
 // Custom player controls shared by the host and viewers: play/pause, a seek
 // bar with a hover preview time, volume, fullscreen (video and chat together)
-// and keyboard shortcuts. Controls fade away while the video plays.
+// captions, and keyboard shortcuts. Controls fade away while the video plays.
 
+import { activeCues, type Cue } from "../../shared/captions";
 import { formatTime } from "../../shared/sync";
 
 export interface PlayerSource {
@@ -13,6 +14,8 @@ export interface PlayerSource {
   seek(seconds: number): void;
   /** Starts local playback the browser held back (autoplay rules); true if it did. */
   resume?(): boolean;
+  /** Lets the host pick a caption file from the CC button when there are none yet. */
+  addCaptions?(): void;
 }
 
 const IDLE_MS = 2600;
@@ -67,6 +70,11 @@ export class PlayerUI {
   private volume: HTMLInputElement;
   private fsBtn: HTMLButtonElement;
   private status: HTMLElement;
+  private ccBtn: HTMLButtonElement;
+  private captionBox: HTMLElement;
+  private cues: Cue[] | null = null;
+  private showCaptions = true;
+  private shownCaption = "";
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private dragging: number | null = null;
   private raf = 0;
@@ -123,12 +131,19 @@ export class PlayerUI {
     this.volume.value = String(video.volume);
     this.volume.setAttribute("aria-label", "Volume");
     this.fsBtn = button("Fullscreen", ICONS.full);
+    this.ccBtn = document.createElement("button");
+    this.ccBtn.type = "button";
+    this.ccBtn.className = "pc-btn pc-cc";
+    this.ccBtn.textContent = "CC";
+    this.captionBox = document.createElement("div");
+    this.captionBox.className = "pc-captions";
+    this.captionBox.setAttribute("aria-live", "off");
     const spacer = document.createElement("span");
     spacer.className = "pc-spacer";
-    row.append(this.playBtn, back, fwd, this.time, spacer, this.muteBtn, this.volume, this.fsBtn);
+    row.append(this.playBtn, back, fwd, this.time, spacer, this.ccBtn, this.muteBtn, this.volume, this.fsBtn);
     controls.append(this.bar, row);
 
-    this.root.append(this.status, this.bigPlay, controls);
+    this.root.append(this.status, this.bigPlay, this.captionBox, controls);
     screen.append(this.root);
 
     this.playBtn.onclick = () => this.toggle();
@@ -145,6 +160,7 @@ export class PlayerUI {
       this.renderVolume();
     };
     this.fsBtn.onclick = () => this.toggleFullscreen();
+    this.ccBtn.onclick = () => this.toggleCaptions();
     document.addEventListener("fullscreenchange", () =>
       setIcon(this.fsBtn, document.fullscreenElement ? ICONS.exit : ICONS.full, document.fullscreenElement ? "Exit fullscreen" : "Fullscreen"),
     );
@@ -158,7 +174,15 @@ export class PlayerUI {
     for (const type of ["mousemove", "touchstart", "focusin"]) screen.addEventListener(type, () => this.wake());
     screen.addEventListener("mouseleave", () => this.sleepSoon(400));
     this.renderVolume();
+    this.renderCaptionButton();
     this.loop();
+  }
+
+  /** Caption cues to show over the video, or null for none. */
+  setCaptions(cues: Cue[] | null): void {
+    this.cues = cues?.length ? cues : null;
+    this.showCaptions = true;
+    this.renderCaptionButton();
   }
 
   /** Message over the picture ("Connecting to the host"), or null to clear it. */
@@ -190,6 +214,28 @@ export class PlayerUI {
     setTimeout(() => {
       if (this.status.textContent === LOCKED) this.setStatus(previous);
     }, 1600);
+  }
+
+  private toggleCaptions(): void {
+    if (!this.cues) return this.source.addCaptions?.();
+    this.showCaptions = !this.showCaptions;
+    this.renderCaptionButton();
+  }
+
+  private renderCaptionButton(): void {
+    this.ccBtn.hidden = !this.cues && !this.source.addCaptions;
+    const on = !!this.cues && this.showCaptions;
+    const label = !this.cues ? "Add captions" : on ? "Hide captions" : "Show captions";
+    this.ccBtn.setAttribute("aria-label", label);
+    this.ccBtn.title = label;
+    this.ccBtn.classList.toggle("on", on);
+  }
+
+  private renderCaption(position: number): void {
+    const text = this.cues && this.showCaptions ? activeCues(this.cues, position).map((c) => c.text).join("\n") : "";
+    if (text === this.shownCaption) return;
+    this.shownCaption = text;
+    this.captionBox.replaceChildren(...(text ? [Object.assign(document.createElement("span"), { textContent: text })] : []));
   }
 
   private toggleFullscreen(): void {
@@ -243,6 +289,7 @@ export class PlayerUI {
       else if (k === "arrowright" || k === "l") this.skip(k === "l" ? 10 : 5);
       else if (k === "m") this.muteBtn.click();
       else if (k === "f") this.toggleFullscreen();
+      else if (k === "c" && this.cues) this.toggleCaptions();
       else return;
       e.preventDefault();
     });
@@ -280,6 +327,7 @@ export class PlayerUI {
     this.bar.setAttribute("aria-valuenow", String(Math.round(shown)));
     this.bar.setAttribute("aria-valuemax", String(Math.round(s.duration)));
     this.bar.setAttribute("aria-valuetext", `${formatTime(shown)} of ${formatTime(s.duration)}`);
+    this.renderCaption(s.position);
     const playing = s.playing;
     if (this.playBtn.dataset.playing !== String(playing)) {
       this.playBtn.dataset.playing = String(playing);
