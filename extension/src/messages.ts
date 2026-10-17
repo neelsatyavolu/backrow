@@ -39,7 +39,8 @@ export type RuntimeIn =
   | { type: "start"; tabId: number; hostOnly: boolean }
   | { type: "leave"; tabId: number }
   | { type: "get-profile" }
-  | { type: "set-profile"; profile: Profile }
+  | { type: "set-profile"; profile: Profile; fromAccount?: boolean }
+  | { type: "account-pull" }
   | { type: "join"; roomId: string; keyText: string; url: string };
 
 export interface PopupStatus {

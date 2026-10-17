@@ -10,7 +10,7 @@ import type { LocalVideo } from "../../shared/services";
 import { expectedPosition } from "../../shared/sync";
 import { SyncController, type PlayerAdapter, type PlayerEvent } from "../../shared/sync-controller";
 import { ChatPanel } from "../../shared/ui/panel";
-import { el, load, partyFromLocation, store } from "./local";
+import { el, load, partyFromLocation, pullAccountProfile, saveProfile, store } from "./local";
 import { PlayerUI, type PlayerSource } from "./player-ui";
 import { profileForm } from "./profile-form";
 import { loadIceServers, StreamHost, StreamViewer } from "./rtc";
@@ -111,7 +111,7 @@ function makePanel(client: PartyClient, party: Party, profile: Profile, onLeave:
     typing: (on) => client.setTyping(on),
     setControl: (m) => client.setControl(m),
     setProfile: (p) => {
-      store("backrow:profile", JSON.stringify(p));
+      saveProfile(p);
       void client.setProfile(p);
     },
     inviteUrl: () => `${location.origin}/p/${party.roomId}#${party.keyText}`,
@@ -373,7 +373,9 @@ function joinGate(party: Party, media: LocalVideo, members: number): void {
 // ---------------- Entry ----------------
 
 async function run(): Promise<void> {
-  if (location.pathname === "/host") return newHostParty();
+  // Signed-in people get their latest profile before the forms fill in.
+  const pulled = pullAccountProfile();
+  if (location.pathname === "/host") return pulled.then(newHostParty);
   const party = partyFromLocation();
   if (!party) return gateMessage("This link is incomplete", "Ask for the invite link again, including the part after #.", homeButton());
   const res = await fetch(`/api/rooms/${party.roomId}`);
@@ -386,6 +388,7 @@ async function run(): Promise<void> {
     location.replace(`/p/${party.roomId}#${party.keyText}`);
     return;
   }
+  await pulled;
   const hostKey = load(`backrow:host:${party.roomId}`);
   if (hostKey) return resumeHost(party, hostKey, media);
   joinGate(party, media, info.members);

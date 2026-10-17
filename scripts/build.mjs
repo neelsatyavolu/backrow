@@ -66,11 +66,11 @@ cpSync("extension/icons", `${OUT}/icons`, { recursive: true });
 mkdirSync("worker/public", { recursive: true });
 await build({
   ...common,
-  entryPoints: { home: "web/src/home.ts", join: "web/src/join.ts", watch: "web/src/watch.ts" },
+  entryPoints: { home: "web/src/home.ts", join: "web/src/join.ts", watch: "web/src/watch.ts", account: "web/src/account.ts" },
   outdir: "worker/public",
   format: "esm",
 });
-for (const f of ["index.html", "join.html", "watch.html", "site.css", "icon.svg", "og.png"]) cpSync(`web/${f}`, `worker/public/${f}`);
+for (const f of ["index.html", "join.html", "watch.html", "account.html", "site.css", "icon.svg", "og.png"]) cpSync(`web/${f}`, `worker/public/${f}`);
 writeFileSync("worker/public/_headers", [
   "/*",
   "  X-Content-Type-Options: nosniff",

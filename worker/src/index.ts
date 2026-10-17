@@ -1,15 +1,16 @@
 // HTTP entry point: party creation, WebSocket hand-off to the room's Durable
-// Object, and ICE servers for peer-to-peer video streams.
+// Object, ICE servers for peer-to-peer video streams, and accounts.
 
 import { randomId } from "../../shared/crypto";
 import { isBlob, ROOM_ID_RE } from "../../shared/protocol";
+import { handleAccount } from "./account";
 import type { Env } from "./env";
 
 export { Room } from "./room";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
@@ -92,6 +93,7 @@ async function route(request: Request, env: Env): Promise<Response> {
       const res = await env.ROOMS.getByName(parts[2]!).fetch("https://room/info");
       return json(await res.json(), res.status);
     }
+    if (parts[1] === "account" && parts.length <= 3) return handleAccount(request, env, parts[2] ?? "", json);
     if (parts[1] === "ice" && parts.length === 2 && method === "GET") return iceServers(env);
     return fail(404, "Not found");
   }

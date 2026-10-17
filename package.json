@@ -1,6 +1,6 @@
 {
   "name": "backrow",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -8,7 +8,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "dev": "npm run build && wrangler dev --config worker/wrangler.jsonc",
-    "deploy": "npm run build && wrangler deploy --config worker/wrangler.jsonc",
+    "deploy": "npm run build && wrangler d1 migrations apply backrow-accounts --remote --config worker/wrangler.jsonc && wrangler deploy --config worker/wrangler.jsonc",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p worker/tsconfig.json --noEmit",
     "test:e2e": "vitest run --config vitest.e2e.config.ts"

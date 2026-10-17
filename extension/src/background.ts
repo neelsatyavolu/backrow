@@ -1,6 +1,7 @@
 // Background service worker: owns one encrypted party connection per tab, so
 // a party survives page navigations (next episode, reloads).
 
+import { AccountApi, parseSavedAccount, pullProfile, pushProfile } from "../../shared/account";
 import { importKey, newKeyText, sealJson } from "../../shared/crypto";
 import { PartyClient } from "../../shared/party-client";
 import { AVATAR_COLORS, parseProfile, type Profile } from "../../shared/payload";
@@ -40,6 +41,38 @@ async function getProfile(): Promise<Profile> {
   };
   await chrome.storage.local.set({ profile: fresh });
   return fresh;
+}
+
+const accounts = new AccountApi(SERVER);
+
+async function savedAccount() {
+  return parseSavedAccount((await chrome.storage.local.get("account")).account);
+}
+
+/** Saves the profile here, tells every party, and (if signed in) saves it to the account. */
+async function applyProfile(profile: Profile, upload: boolean): Promise<void> {
+  await chrome.storage.local.set({ profile });
+  for (const l of live.values()) await l.client.setProfile(profile);
+  for (const tabId of ports.keys()) await pushSession(tabId);
+  const account = upload ? await savedAccount() : null;
+  if (!account) return;
+  // Saved locally either way; the account copy catches up on the next change.
+  const ok = await pushProfile(accounts, account, profile).catch((err) => {
+    console.error("[backrow] saving profile to account failed", err);
+    return true;
+  });
+  if (!ok) await chrome.storage.local.remove("account");
+}
+
+/** Picks up a profile changed on another device. */
+async function pullAccountProfile(): Promise<Profile | null> {
+  const account = await savedAccount();
+  if (!account) return null;
+  const { profile, signedOut } = await pullProfile(accounts, account);
+  if (signedOut) await chrome.storage.local.remove("account");
+  if (!profile) return null;
+  if (JSON.stringify(profile) !== JSON.stringify(await getProfile())) await applyProfile(profile, false);
+  return profile;
 }
 
 function info(l: Live): SessionInfo {
@@ -141,10 +174,7 @@ async function handlePort(tabId: number, msg: PortIn): Promise<void> {
   if (msg.type === "leave") return forget(tabId);
   if (msg.type === "profile") {
     const profile = parseProfile(msg.profile);
-    if (!profile) return;
-    await chrome.storage.local.set({ profile });
-    for (const l of live.values()) await l.client.setProfile(profile);
-    for (const tabId of ports.keys()) await pushSession(tabId);
+    if (profile) await applyProfile(profile, true);
     return;
   }
   const l = live.get(tabId);
@@ -203,9 +233,12 @@ chrome.runtime.onMessage.addListener((msg: RuntimeIn, sender, reply) => {
       case "get-profile":
         return getProfile();
       case "set-profile": {
-        await handlePort(-1, { type: "profile", profile: msg.profile });
+        const profile = parseProfile(msg.profile);
+        if (profile) await applyProfile(profile, !msg.fromAccount);
         return { ok: true };
       }
+      case "account-pull":
+        return pullAccountProfile();
       case "join": {
         const tabId = sender.tab?.id;
         if (tabId === undefined || !sender.url?.startsWith(`${SERVER}/p/`)) return { ok: false };

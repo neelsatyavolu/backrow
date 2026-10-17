@@ -25,6 +25,7 @@
       <a class="link" href="#upload">Your video</a>
       <a class="link" href="#privacy">Privacy</a>
       <a class="link" href="https://github.com/neelsatyavolu/backrow">GitHub</a>
+      <a class="link" href="/account">Account</a>
     </div>
   </nav>
 
@@ -126,16 +127,17 @@
       <div class="node"><span class="label">Friend's browser</span><p>Unlocks it with the same key</p></div>
     </div>
     <div class="ledger">
-      <div><span class="label">Encrypted end to end</span><ul><li>Chat messages and reactions</li><li>Names and colors</li><li>The show or file you're watching</li><li>Play, pause and seek positions</li><li>Your own video, streamed browser to browser</li></ul></div>
-      <div><span class="label">What the server can see</span><ul><li>A random party id</li><li>How many people are connected</li><li>When messages are sent, and their size</li><li>Who is host, and whether only the host controls playback</li></ul></div>
+      <div><span class="label">Encrypted end to end</span><ul><li>Chat messages and reactions</li><li>Names and colors</li><li>The show or file you're watching</li><li>Play, pause and seek positions</li><li>Your own video, streamed browser to browser</li><li>The profile saved to your account, if you make one</li></ul></div>
+      <div><span class="label">What the server can see</span><ul><li>A random party id</li><li>How many people are connected</li><li>When messages are sent, and their size</li><li>Who is host, and whether only the host controls playback</li><li>Your email, if you make an account (never your password)</li></ul></div>
     </div>
   </section>
 
   <section class="section" id="faq">
     <div class="section-head"><span class="label">04 · Questions</span><h2>Good to know</h2></div>
     <div class="faq">
-      <details><summary>Is it actually free?</summary><p>Yes. No accounts, ads or paid tier. It runs on Cloudflare's free plan, and the code is MIT licensed, so you can host your own copy.</p></details>
+      <details><summary>Is it actually free?</summary><p>Yes. No ads or paid tier. Accounts are optional and only keep your profile on every device. It runs on Cloudflare's free plan, and the code is MIT licensed, so you can host your own copy.</p></details>
       <details><summary>Does everyone need a subscription?</summary><p>For Netflix, Hulu and Peacock, yes. Each person streams from their own account, and Backrow only keeps the players in sync. YouTube and uploaded videos need no account.</p></details>
+      <details><summary>Do I need an account?</summary><p>No. An account only saves your photo, name and color so they follow you to other browsers. They're encrypted with a key made from your password before they leave your browser, so the server can't read them. If you forget your password, resetting it clears that saved profile, since nothing else can unlock it.</p></details>
       <details><summary>Why isn't it in the Chrome Web Store?</summary><p>Not yet. Loading it in Developer mode takes a minute and runs the same code you can read on GitHub.</p></details>
       <details><summary>Firefox or Safari?</summary><p>The extension is Chromium-only for now. Friends can watch a video streamed from your computer in any modern browser, phones included.</p></details>
       <details><summary>Where does my own video go?</summary><p>Nowhere but your friends' screens. It streams directly from your browser to theirs over an encrypted connection, and it's never uploaded or stored.</p></details>

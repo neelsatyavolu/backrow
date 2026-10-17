@@ -33,7 +33,8 @@ To watch your own file, open [backrow.n3el.dev/host](https://backrow.n3el.dev/ho
 - Profiles with a display name, color and optional photo, all end-to-end encrypted like the chat.
 - The video shrinks beside the chat (animated) instead of being covered, including in fullscreen.
 - Peacock sync stays on the show even when viewers get different ad breaks.
-- No accounts, no ads, no tracking.
+- Optional accounts (email and password) that keep your photo, name and color on every device, encrypted so the server can't read them. Nothing else needs an account.
+- No ads, no tracking.
 
 ## Privacy model
 
@@ -51,6 +52,12 @@ Your own videos never touch the server. WebRTC setup messages (offers, answers, 
 
 Anyone holding the invite link can join and read the chat, so share it only with the people you're inviting.
 
+### Accounts
+
+Accounts are optional and only sync your profile. Your password never leaves the browser: it is stretched with PBKDF2 (600,000 rounds, salted with your email) and split with HKDF into two keys. One key proves who you are; the server stores only a salted hash of it. The other encrypts your profile (AES-GCM) before upload, and the server never sees it. The server stores your email, that hash and the encrypted profile.
+
+Emails (a 6-digit code to confirm your address or reset your password) are sent through Resend. Because only your password can unlock your saved profile, resetting a forgotten password clears it; the copy on your device is uploaded again. Sign-in tries are rate limited per address and per IP, and each code allows five attempts in 15 minutes.
+
 ## How it works
 
 ```
@@ -63,6 +70,7 @@ web/         landing page, invite page, host/viewer player, WebRTC streaming
 worker/      Cloudflare Worker
   room.ts         one Durable Object per party (WebSocket hibernation)
   room-logic.ts   pure relay/permission rules (unit tested)
+  account.ts      optional accounts (D1 + Resend email codes)
 shared/      protocol, crypto, sync math, chat panel (used by all of the above)
 ```
 
@@ -80,12 +88,16 @@ npm run typecheck
 BACKROW_SERVER=http://localhost:8787 npm run test:e2e   # live tests against a running server
 ```
 
+For accounts in local dev, put `DEV_CODES=1` in `worker/.dev.vars` and run `npx wrangler d1 migrations apply backrow-accounts --local --config worker/wrangler.jsonc` once. The dev server then shows email codes on the page instead of sending them. The account e2e tests need this.
+
 `npm run build` writes the extension to `extension/dist` (load it unpacked) and the zip to `dist/`. Commit `extension/dist` along with source changes, or the CI check fails. Set `BACKROW_SERVER` to build an extension that talks to your own server; those builds go to `extension/dist-dev`, which git ignores, so the committed copy always points at backrow.n3el.dev.
 
 ### Self-host
 
 ```sh
-# edit worker/wrangler.jsonc routes for your domain, then:
+# create a D1 database and put its id in worker/wrangler.jsonc, edit the routes
+# for your domain and the sender in worker/src/account.ts, then:
+npx wrangler secret put RESEND_API_KEY --config worker/wrangler.jsonc
 BACKROW_SERVER=https://your.domain npm run deploy
 ```
 

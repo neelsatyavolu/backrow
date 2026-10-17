@@ -2,7 +2,7 @@
 
 import { AVATAR_COLORS, NAME_MAX, type Profile } from "../../shared/payload";
 import { fileToAvatar, photoCanvas } from "../../shared/ui/avatar-image";
-import { el, loadProfile, saveProfile } from "./local";
+import { el, loadAccount, loadProfile, saveProfile } from "./local";
 
 export interface ProfileForm {
   nodes: HTMLElement[];
@@ -77,8 +77,14 @@ export function profileForm(): ProfileForm {
   paintSwatches();
   paintPhoto();
 
+  const account = loadAccount();
+  const accountLink = el("a", "meta account-link", account ? `Saved to ${account.email}` : "Sign in to keep this profile on every device");
+  accountLink.href = "/account";
+  accountLink.target = "_blank";
+  accountLink.rel = "noopener";
+
   return {
-    nodes: [el("span", "label", "Your photo"), photoRow, photoErr, el("span", "label", "Display name"), name, el("span", "label", "Color"), swatches],
+    nodes: [el("span", "label", "Your photo"), photoRow, photoErr, el("span", "label", "Display name"), name, el("span", "label", "Color"), swatches, accountLink],
     commit() {
       profile = { ...profile, name: name.value.trim().slice(0, NAME_MAX) || profile.name };
       saveProfile(profile);

@@ -218,3 +218,12 @@ code{font:13px var(--mono);color:var(--fg);background:var(--surface);padding:1px
 .side{overflow:hidden}
 @media (max-width:820px){.stage.chat-hidden .side{height:0}}
 @media (prefers-reduced-motion:reduce){.stage{transition:none}}
+.account-page{max-width:420px;gap:14px}
+.account-page .title{font:500 21px/1.25 var(--mono);text-transform:uppercase}
+.account-form{display:flex;flex-direction:column;gap:10px}
+.account-links{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
+.linkish{background:none;border:0;padding:0;color:var(--fg-2);font:13px var(--mono);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.linkish:hover{color:var(--fg)}
+.linkish.danger{color:var(--danger)}
+.account-link{color:var(--fg-3);text-underline-offset:3px}
+.account-link:hover{color:var(--fg)}

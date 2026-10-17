@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Backrow: watch parties",
   "short_name": "Backrow",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Free, end-to-end encrypted watch parties for Netflix, Hulu, Peacock and YouTube.",
   "icons": {
     "16": "icons/16.png",

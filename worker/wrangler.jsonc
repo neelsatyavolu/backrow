@@ -21,7 +21,11 @@
     { "tag": "v1", "new_sqlite_classes": ["Room", "Quota"] },
     { "tag": "v2", "deleted_classes": ["Quota"] }
   ],
+  "d1_databases": [
+    { "binding": "DB", "database_name": "backrow-accounts", "database_id": "cdfff057-076e-400f-8074-86906ae0fb45", "migrations_dir": "migrations" }
+  ],
   "ratelimits": [
-    { "name": "CREATE_LIMITER", "namespace_id": "4201", "simple": { "limit": 20, "period": 60 } }
+    { "name": "CREATE_LIMITER", "namespace_id": "4201", "simple": { "limit": 20, "period": 60 } },
+    { "name": "AUTH_LIMITER", "namespace_id": "4202", "simple": { "limit": 20, "period": 60 } }
   ]
 }

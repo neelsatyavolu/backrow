@@ -1,6 +1,7 @@
 // Per-browser conveniences for the web pages. Storage can be blocked
 // (private windows), so every access falls back quietly.
 
+import { AccountApi, parseSavedAccount, pullProfile, pushProfile, type SavedAccount } from "../../shared/account";
 import { AVATAR_COLORS, parseProfile, type Profile } from "../../shared/payload";
 
 export function load(key: string): string | null {
@@ -29,8 +30,46 @@ export function loadProfile(): Profile {
   return { name: `Guest ${Math.floor(100 + Math.random() * 900)}`, color: Math.floor(Math.random() * AVATAR_COLORS.length) };
 }
 
-export function saveProfile(profile: Profile): void {
+export const accountApi = new AccountApi(location.origin);
+
+export function loadAccount(): SavedAccount | null {
+  try {
+    return parseSavedAccount(JSON.parse(load("backrow:account") ?? "null"));
+  } catch {
+    return null;
+  }
+}
+
+export function saveAccount(account: SavedAccount | null): void {
+  if (account) store("backrow:account", JSON.stringify(account));
+  else {
+    try {
+      localStorage.removeItem("backrow:account");
+    } catch {
+      // Nothing stored.
+    }
+  }
+}
+
+/** Remembers the profile here and, when signed in, saves it to the account. */
+export function saveProfile(profile: Profile, upload = true): void {
   store("backrow:profile", JSON.stringify(profile));
+  const account = upload ? loadAccount() : null;
+  if (!account) return;
+  pushProfile(accountApi, account, profile)
+    .then((ok) => ok || saveAccount(null))
+    .catch((err) => console.error("[backrow] saving profile to account failed", err));
+}
+
+/** Picks up a profile changed on another device, giving up after a moment so pages don't wait on it. */
+export async function pullAccountProfile(timeoutMs = 2500): Promise<void> {
+  const account = loadAccount();
+  if (!account) return;
+  const pull = pullProfile(accountApi, account).then(({ profile, signedOut }) => {
+    if (signedOut) saveAccount(null);
+    if (profile) saveProfile(profile, false);
+  });
+  await Promise.race([pull.catch(() => undefined), new Promise((r) => setTimeout(r, timeoutMs))]);
 }
 
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = "", text?: string): HTMLElementTagNameMap[K] {

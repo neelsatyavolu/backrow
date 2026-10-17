@@ -1,4 +1,6 @@
+import { AccountApi, parseSavedAccount, type SavedAccount } from "../../shared/account";
 import { AVATAR_COLORS, type Profile } from "../../shared/payload";
+import { accountView } from "../../shared/ui/account-form";
 import { fileToAvatar, photoCanvas } from "../../shared/ui/avatar-image";
 import { SERVICE_LABELS } from "../../shared/services";
 import { SERVER, type PopupStatus, type RuntimeIn } from "./messages";
@@ -11,6 +13,8 @@ const photoBtn = document.getElementById("photo") as HTMLButtonElement;
 const removeBtn = document.getElementById("removePhoto") as HTMLButtonElement;
 const photoFile = document.getElementById("photoFile") as HTMLInputElement;
 const photoError = document.getElementById("photoError")!;
+const accountRow = document.getElementById("accountRow")!;
+const accountPage = document.getElementById("accountPage")!;
 (document.getElementById("home") as HTMLAnchorElement).href = `${SERVER}/host`;
 
 let tabId = -1;
@@ -55,7 +59,8 @@ nameInput.addEventListener("change", () => saveProfile({ ...profile, name: nameI
 // On macOS the file picker closes the toolbar popup before a file comes back,
 // so from the popup this opens the same page in a tab, where picking works.
 const inToolbarPopup = chrome.extension.getViews({ type: "popup" }).includes(window);
-const profileOnly = new URLSearchParams(location.search).get("edit") === "profile";
+const editing = new URLSearchParams(location.search).get("edit");
+const profileOnly = editing === "profile" || editing === "account";
 photoBtn.addEventListener("click", () => {
   if (inToolbarPopup) void chrome.tabs.create({ url: chrome.runtime.getURL("popup.html?edit=profile") });
   else photoFile.click();
@@ -75,6 +80,48 @@ photoFile.addEventListener("change", async () => {
 removeBtn.addEventListener("click", () => {
   const { photo: _removed, ...rest } = profile;
   void saveProfile(rest);
+});
+
+// ---------------- Account ----------------
+
+const loadAccount = async () => parseSavedAccount((await chrome.storage.local.get("account")).account);
+
+/** Opens the account page in a tab, where it survives switching to the inbox for a code. */
+const openAccountPage = () => void chrome.tabs.create({ url: chrome.runtime.getURL("popup.html?edit=account") });
+
+async function renderAccountRow(): Promise<void> {
+  if (editing === "account") return accountRow.replaceChildren();
+  const account = await loadAccount();
+  const text = el("span", "meta", account ? `Saved to ${account.email}` : "Keep this profile on every device");
+  const button = el("button", "btn ghost small", account ? "Account" : "Sign in");
+  button.onclick = () => (inToolbarPopup ? openAccountPage() : (location.search = "?edit=account"));
+  accountRow.replaceChildren(text, button);
+}
+
+if (editing === "account") {
+  accountPage.hidden = false;
+  accountView(accountPage, {
+    api: new AccountApi(SERVER),
+    load: loadAccount,
+    save: async (account: SavedAccount | null) => {
+      if (account) await chrome.storage.local.set({ account });
+      else await chrome.storage.local.remove("account");
+    },
+    getProfile: () => ask<Profile>({ type: "get-profile" }),
+    applyProfile: async (next) => {
+      await ask({ type: "set-profile", profile: next, fromAccount: true });
+      profile = next;
+      renderProfile();
+    },
+  });
+}
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && "account" in changes) void renderAccountRow();
+  if (area === "local" && changes.profile?.newValue && document.activeElement !== nameInput) {
+    profile = changes.profile.newValue as Profile;
+    renderProfile();
+  }
 });
 
 function render(status: PopupStatus): void {
@@ -151,6 +198,9 @@ async function refresh(): Promise<void> {
   profile = status.profile;
   renderProfile();
   render(status);
+  void renderAccountRow();
+  // A profile changed on another device arrives through storage.onChanged.
+  void ask({ type: "account-pull" }).catch(() => undefined);
 }
 
 if (profileOnly) {
