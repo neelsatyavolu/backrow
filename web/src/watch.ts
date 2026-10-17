@@ -61,9 +61,76 @@ function canStream(): boolean {
   return typeof v.captureStream === "function" || typeof v.mozCaptureStream === "function";
 }
 
-function capture(): MediaStream {
+/**
+ * Chrome stamps an element's captured audio as if it played earlier than it
+ * does, so once WebRTC's lip sync settled, viewers heard the sound ~0.5 s
+ * before the picture. Passing the audio through Web Audio gives it fresh
+ * timestamps, and holding it back 320 ms lines it up (measured against a real
+ * film: +510 ms before, within a frame after). Lip sync ignores the viewer's own
+ * speakers or headphones (Bluetooth adds ~200 ms), so each viewer's audio is
+ * held back that much less.
+ */
+const CAPTURE_LEAD_MS = 320;
+
+/** Copies of the audio track, delayed by a given number of ms (in 10 ms steps). */
+function audioDelays(track: MediaStreamTrack): (ms: number) => MediaStreamTrack {
+  const ctx = new AudioContext({ latencyHint: "playback" });
+  const resume = () => void ctx.resume().catch(() => undefined);
+  resume();
+  // The Start click normally lets it run; if the browser still holds it, the next click does.
+  for (const type of ["pointerdown", "keydown"]) addEventListener(type, resume, { once: true });
+  ctx.addEventListener("statechange", () => debug("audio delay", { state: ctx.state }));
+  const source = ctx.createMediaStreamSource(new MediaStream([track]));
+  const lines = new Map<number, { gain: GainNode; track: MediaStreamTrack }>();
+  // Silence what was still in the delays when a seek starts, until new audio comes through.
+  video.addEventListener("seeking", () => {
+    for (const { gain } of lines.values()) {
+      gain.gain.cancelScheduledValues(ctx.currentTime);
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+    }
+  });
+  video.addEventListener("seeked", () => {
+    for (const [ms, { gain }] of lines) gain.gain.setValueAtTime(1, ctx.currentTime + ms / 1000);
+  });
+  return (ms) => {
+    const key = Math.round(ms / 10) * 10;
+    const existing = lines.get(key);
+    if (existing) return existing.track;
+    const delay = ctx.createDelay(1);
+    delay.delayTime.value = key / 1000;
+    const gain = ctx.createGain();
+    const out = ctx.createMediaStreamDestination();
+    source.connect(delay).connect(gain).connect(out);
+    const line = { gain, track: out.stream.getAudioTracks()[0]! };
+    lines.set(key, line);
+    return line.track;
+  };
+}
+
+/** Captures the local video; the result gives the stream for a viewer whose output adds outputMs. */
+function capture(): (outputMs: number) => MediaStream {
   const v = video as CaptureVideo;
-  return v.captureStream ? v.captureStream() : v.mozCaptureStream!();
+  const raw = v.captureStream ? v.captureStream() : v.mozCaptureStream!();
+  const audio = raw.getAudioTracks()[0];
+  // Only measured on Chrome's captureStream; Firefox's is sent as it comes.
+  if (!v.captureStream || !audio) return () => raw;
+  const delayed = audioDelays(audio);
+  return (outputMs) => new MediaStream([...raw.getVideoTracks(), delayed(Math.max(0, CAPTURE_LEAD_MS - outputMs))]);
+}
+
+/** How much this device's speakers or headphones delay sound, in ms; 0 if unknown. */
+async function outputDelayMs(): Promise<number> {
+  const ctx = new AudioContext();
+  try {
+    await ctx.resume();
+    // Browsers fill outputLatency in shortly after the device starts.
+    for (let i = 0; i < 10 && !ctx.outputLatency; i++) await new Promise((r) => setTimeout(r, 100));
+    return Math.round((ctx.outputLatency || 0) * 1000);
+  } catch {
+    return 0;
+  } finally {
+    void ctx.close();
+  }
 }
 
 const localAdapter: PlayerAdapter = {
@@ -196,7 +263,7 @@ async function startHost(party: Party, profile: Profile, hostKey: string, captio
   // Before connecting: events that arrive while this loads would be missed.
   const ice = await loadIceServers();
   const client = new PartyClient({ server: location.origin, roomId: party.roomId, keyText: party.keyText, hostKey, profile });
-  let stream: MediaStream | null = null;
+  let streamFor: ((outputMs: number) => MediaStream) | null = null;
   let host: StreamHost | null = null;
   const panel = makePanel(client, party, profile, () => host?.closeAll());
   const sync = new SyncController(localAdapter, {
@@ -234,9 +301,9 @@ async function startHost(party: Party, profile: Profile, hostKey: string, captio
 
   debug("host ready", { ice: iceKinds(ice) });
   const ensureStream = (): StreamHost => {
-    stream ??= capture();
+    streamFor ??= capture();
     if (!host) {
-      host = new StreamHost(client, stream, ice, debug);
+      host = new StreamHost(client, streamFor, ice, debug);
       host.setCaptions(captions);
     }
     return host;
@@ -356,6 +423,9 @@ function resumeHost(party: Party, hostKey: string, media: LocalVideo): void {
 
 async function startViewer(party: Party, profile: Profile): Promise<void> {
   gate.hidden = true;
+  // Measured while the Join click still lets audio start; the host makes up for it.
+  const outputMs = outputDelayMs();
+  void outputMs.then((ms) => debug("audio output", { ms }));
   // Before connecting: events that arrive while this loads would be missed.
   const ice = await loadIceServers();
   const client = new PartyClient({ server: location.origin, roomId: party.roomId, keyText: party.keyText, profile });
@@ -436,26 +506,12 @@ async function startViewer(party: Party, profile: Profile): Promise<void> {
   video.addEventListener("volumechange", () => {
     if (autoMuted && !video.muted) soundOn();
   });
-  // Headphones and speakers add their own delay on top of the stream's, which
-  // WebRTC's lip sync doesn't see. Logged once, after sound is on.
-  let outputLogged = false;
-  const logOutput = () => {
-    if (outputLogged || video.muted || video.paused) return;
-    outputLogged = true;
-    const ac = new AudioContext();
-    setTimeout(() => {
-      debug("audio output", { state: ac.state, baseMs: Math.round(ac.baseLatency * 1000), outputMs: Math.round((ac.outputLatency ?? 0) * 1000) });
-      void ac.close();
-    }, 1000);
-  };
-  video.addEventListener("playing", logOutput);
-  video.addEventListener("volumechange", logOutput);
 
   const ask = () => {
     const room = client.room;
     if (!room || viewer.connected) return;
     const hostHere = room.host && room.members.some((m) => m.id === room.host);
-    if (hostHere && room.host !== room.you) viewer.request(room.host!);
+    if (hostHere && room.host !== room.you) void outputMs.then((ms) => viewer.request(room.host!, ms));
     else ui.setStatus("Waiting for the host to come back");
   };
   setInterval(ask, 5000);

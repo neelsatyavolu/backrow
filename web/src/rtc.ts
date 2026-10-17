@@ -9,7 +9,7 @@ import type { PartyClient } from "../../shared/party-client";
 import type { RemoteLog } from "../../shared/remote-log";
 
 type Signal =
-  | { kind: "want" }
+  | { kind: "want"; outputMs?: number }
   | { kind: "offer"; sdp: string }
   | { kind: "answer"; sdp: string };
 
@@ -75,7 +75,10 @@ export async function loadIceServers(): Promise<RTCIceServer[]> {
 function parseSignal(data: unknown): Signal | null {
   if (!data || typeof data !== "object") return null;
   const d = data as Record<string, unknown>;
-  if (d.kind === "want") return { kind: "want" };
+  if (d.kind === "want") {
+    const ok = typeof d.outputMs === "number" && d.outputMs >= 0 && d.outputMs <= 1000;
+    return ok ? { kind: "want", outputMs: d.outputMs as number } : { kind: "want" };
+  }
   if ((d.kind === "offer" || d.kind === "answer") && typeof d.sdp === "string" && d.sdp.length < 34000) return { kind: d.kind, sdp: d.sdp };
   return null;
 }
@@ -200,14 +203,13 @@ export class StreamHost {
   private channels = new Map<string, RTCDataChannel>();
   private captions: string | null = null;
 
+  /** streamFor gives the tracks for a viewer whose speakers or headphones add outputMs of delay. */
   constructor(
     private readonly client: PartyClient,
-    private readonly stream: MediaStream,
+    private readonly streamFor: (outputMs: number) => MediaStream,
     private readonly ice: RTCIceServer[],
     private readonly log: RemoteLog = () => undefined,
-  ) {
-    for (const track of stream.getVideoTracks()) track.contentHint = "motion";
-  }
+  ) {}
 
   get viewers(): number {
     return [...this.peers.values()].filter((pc) => pc.connectionState === "connected").length;
@@ -228,20 +230,22 @@ export class StreamHost {
       const pc = this.peers.get(from);
       const age = Date.now() - (this.started.get(from) ?? 0);
       if (pc && (pc.connectionState === "connected" || age < SETUP_GRACE_MS)) return;
-      await this.offer(from);
+      await this.offer(from, signal.outputMs ?? 0);
     }
     else if (signal?.kind === "answer") await this.peers.get(from)?.setRemoteDescription({ type: "answer", sdp: signal.sdp });
   }
 
-  private async offer(to: string): Promise<void> {
+  private async offer(to: string, outputMs: number): Promise<void> {
     this.close(to);
     const pc = new RTCPeerConnection({ iceServers: this.ice });
     this.peers.set(to, pc);
     this.started.set(to, Date.now());
-    this.log("offer", { to, tracks: this.stream.getTracks().map((t) => `${t.kind}:${t.readyState}`) });
+    const stream = this.streamFor(outputMs);
+    for (const track of stream.getVideoTracks()) track.contentHint = "motion";
+    this.log("offer", { to, outputMs, tracks: stream.getTracks().map((t) => `${t.kind}:${t.readyState}`) });
     watchConnection(pc, to, this.log);
-    for (const track of this.stream.getTracks()) {
-      const transceiver = pc.addTransceiver(track, { direction: "sendonly", streams: [this.stream] });
+    for (const track of stream.getTracks()) {
+      const transceiver = pc.addTransceiver(track, { direction: "sendonly", streams: [stream] });
       if (track.kind === "video") preferCodecs(transceiver);
       const params = transceiver.sender.getParameters();
       params.encodings = [{ ...(params.encodings?.[0] ?? {}), maxBitrate: track.kind === "video" ? VIDEO_BITRATE : AUDIO_BITRATE }];
@@ -289,14 +293,17 @@ export class StreamViewer {
     return this.pc?.connectionState === "connected";
   }
 
-  /** Asks the host for the stream, unless a connection is already up or being set up. */
-  request(hostId: string): void {
+  /**
+   * Asks the host for the stream, unless a connection is already up or being
+   * set up. outputMs is this device's sound delay, which the host makes up for.
+   */
+  request(hostId: string, outputMs: number): void {
     const state = this.pc?.connectionState;
     if (state === "connected" || state === "connecting" || state === "new") return;
     if (Date.now() - this.askedAt < SETUP_GRACE_MS) return;
     this.askedAt = Date.now();
-    this.log("want", { host: hostId, state: state ?? null });
-    void this.client.sendSignal(hostId, { kind: "want" });
+    this.log("want", { host: hostId, state: state ?? null, outputMs });
+    void this.client.sendSignal(hostId, { kind: "want", outputMs });
   }
 
   async onSignal(from: string, data: unknown): Promise<void> {
