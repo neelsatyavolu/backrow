@@ -1,0 +1,7 @@
+node_modules
+.wrangler
+dist
+extension/dist
+worker/public/
+.dev.vars
+*.zip

@@ -1,0 +1,28 @@
+{
+  "name": "backrow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Free, open-source, end-to-end encrypted watch parties for Netflix, Hulu, Peacock, YouTube and your own videos. Runs on Cloudflare.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "npm run build && wrangler dev --config worker/wrangler.jsonc",
+    "deploy": "npm run build && wrangler deploy --config worker/wrangler.jsonc",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p worker/tsconfig.json --noEmit",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261016.1",
+    "@types/chrome": "^0.3.5",
+    "@types/node": "^26.6.5",
+    "@types/ws": "^8.18.2",
+    "esbuild": "^0.28.2",
+    "playwright": "^1.64.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
+    "wrangler": "^4.151.1",
+    "ws": "^8.22.0"
+  }
+}

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Backrow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header><span class="brand">Backrow</span><span class="caret" aria-hidden="true"></span></header>
+<main id="view" aria-live="polite"></main>
+<section class="you">
+  <label class="label" for="name">Your name</label>
+  <input id="name" class="field" maxlength="24" autocomplete="off">
+  <div id="swatches" class="swatches" role="group" aria-label="Your color"></div>
+</section>
+<footer><a id="home" target="_blank" rel="noopener">Upload your own video</a><a href="https://github.com/neelsatyavolu/backrow" target="_blank" rel="noopener">Source</a></footer>
+<script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "backrow",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+  "workers_dev": false,
+  "routes": [{ "pattern": "backrow.n3el.dev", "custom_domain": true }],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "html_handling": "drop-trailing-slash",
+    "run_worker_first": ["/api/*", "/ws/*", "/media/*", "/p/*", "/watch/*"]
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "ROOMS", "class_name": "Room" },
+      { "name": "QUOTA", "class_name": "Quota" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Room", "Quota"] }],
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "backrow-media" }],
+  "ratelimits": [
+    { "name": "CREATE_LIMITER", "namespace_id": "4201", "simple": { "limit": 20, "period": 60 } },
+    { "name": "UPLOAD_LIMITER", "namespace_id": "4202", "simple": { "limit": 3, "period": 60 } }
+  ]
+}

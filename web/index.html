@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Backrow · Watch together, privately</title>
+<meta name="description" content="Free, open-source watch parties for Netflix, Hulu, Peacock, YouTube and your own videos. Synced playback and an end-to-end encrypted chat.">
+<meta property="og:title" content="Backrow · Watch together, privately">
+<meta property="og:description" content="Free watch parties for Netflix, Hulu, Peacock, YouTube and your own videos. End-to-end encrypted.">
+<meta property="og:image" content="https://backrow.n3el.dev/og.png">
+<meta property="og:url" content="https://backrow.n3el.dev">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Newsreader:ital,wght@0,400;1,400&display=swap">
+<link rel="stylesheet" href="/site.css">
+</head>
+<body>
+<div class="wrap">
+  <nav class="nav">
+    <a class="brand" href="/">Backrow<span class="caret"></span></a>
+    <div class="navlinks">
+      <a class="link" href="#install">Install</a>
+      <a class="link" href="#upload">Upload</a>
+      <a class="link" href="#privacy">Privacy</a>
+      <a class="link" href="https://github.com/neelsatyavolu/backrow">GitHub</a>
+    </div>
+  </nav>
+
+  <header class="hero split">
+    <div class="hero-copy">
+      <span class="label">Free · Open source · End-to-end encrypted</span>
+      <h1>Save you a seat in the back row.</h1>
+      <p class="lede">Watch Netflix, Hulu, Peacock or YouTube with friends in other places, or upload a video of your own. Play, pause and seek stay in sync for everyone, and the chat on the side is end-to-end encrypted.</p>
+      <div class="ctas">
+        <a class="btn accent" href="/backrow-extension.zip" download>Download for Chrome</a>
+        <a class="btn ghost" href="#upload">Upload a video</a>
+      </div>
+      <p class="meta mono" id="version">Chrome, Edge, Brave, Arc · MIT licensed</p>
+    </div>
+
+    <figure class="mock" aria-label="Backrow running next to a video">
+      <div class="mock-screen">
+        <div class="mock-frame">
+          <span class="mock-react r1">🍿</span>
+          <span class="mock-react r2">😂</span>
+          <div class="mock-bar"><i></i></div>
+          <div class="mock-time"><span>41:07</span><span>1:58:22</span></div>
+        </div>
+      </div>
+      <div class="mock-side">
+        <div class="mock-head"><span>Backrow</span><span class="mock-live"><i></i>live</span></div>
+        <div class="mock-people"><b class="c0">M</b><b class="c3">J</b><b class="c2">A</b><span>3 watching</span></div>
+        <div class="mock-log">
+          <p class="mock-note"><em>Jules</em> paused at 41:02</p>
+          <div class="mock-msg"><b class="c3">J</b><div><span>Jules</span><p>wait who is that</p></div></div>
+          <div class="mock-msg"><b class="c0">M</b><div><span>Maya</span><p>the brother. keep watching</p></div></div>
+          <p class="mock-note"><em>Maya</em> played from 41:02</p>
+        </div>
+        <div class="mock-input">Say something<span class="caret"></span></div>
+      </div>
+    </figure>
+  </header>
+
+  <section class="services" aria-label="Works with">
+    <span>Netflix</span><span>Hulu</span><span>Peacock</span><span>YouTube</span><span>Your own file</span>
+  </section>
+
+  <section class="section" id="install">
+    <div class="section-head">
+      <span class="label">01 · Install</span>
+      <h2>Four steps, about a minute</h2>
+      <p class="meta">Backrow isn't in the Chrome Web Store, so you add it in Developer mode. Everyone watching needs it, plus their own login for the streaming site.</p>
+    </div>
+    <ol class="steps">
+      <li class="step">
+        <span class="num">1</span>
+        <h3>Download the zip</h3>
+        <p>Grab <code>backrow-extension.zip</code>. It's small and has no trackers or remote code.</p>
+        <a class="btn" href="/backrow-extension.zip" download>Download zip</a>
+      </li>
+      <li class="step">
+        <span class="num">2</span>
+        <h3>Unzip it</h3>
+        <p>Double-click the file. Keep the <code>backrow-extension</code> folder somewhere it won't get deleted, since Chrome loads it from there.</p>
+      </li>
+      <li class="step">
+        <span class="num">3</span>
+        <h3>Turn on Developer mode</h3>
+        <p>Paste this into the address bar, then flip the Developer mode switch in the top right.</p>
+        <button class="copy" data-copy="chrome://extensions" type="button"><code>chrome://extensions</code><span>Copy</span></button>
+      </li>
+      <li class="step">
+        <span class="num">4</span>
+        <h3>Load unpacked</h3>
+        <p>Click <b>Load unpacked</b> and pick the unzipped folder. Pin Backrow from the puzzle-piece menu so it's easy to reach.</p>
+      </li>
+    </ol>
+    <div class="howto">
+      <span class="label">Then</span>
+      <p>Open a show and press play. Click the Backrow icon, choose <b>Start party</b> and send the invite link. Friends who open it land on the same episode, at the same second.</p>
+    </div>
+  </section>
+
+  <section class="section" id="upload">
+    <div class="section-head">
+      <span class="label">02 · Your own video</span>
+      <h2>Upload a file, no extension needed</h2>
+      <p class="meta">The file is encrypted in this tab before any of it is sent, and it's deleted within a day. Friends watch in the browser on any device. MP4 (H.264) and WebM play everywhere. Up to 2 GB.</p>
+    </div>
+    <div class="uploader">
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept="video/*,.mkv,.mov,.m4v">
+        <span class="name" id="fileName">Choose a video or drop it here</span>
+        <span class="meta" id="fileMeta">Nothing leaves your computer until you press Upload.</span>
+      </label>
+      <label class="toggle"><input type="checkbox" id="hostOnly"> Only I can control playback</label>
+      <div id="progressBox" hidden><div class="bar"><i id="bar"></i></div><p class="progress" id="progress"></p></div>
+      <p class="error" id="error" role="alert"></p>
+      <div><button class="btn accent" id="upload" disabled>Upload and start party</button></div>
+    </div>
+  </section>
+
+  <section class="section" id="privacy">
+    <div class="section-head">
+      <span class="label">03 · Privacy</span>
+      <h2>The server can't read your party</h2>
+      <p class="meta">Every invite link ends in a secret key, the part after the #. Browsers never send that part to any server. Your messages, names and what you're watching are locked with it before they leave your browser, so Backrow's server only passes along scrambled data.</p>
+    </div>
+    <div class="flow" aria-hidden="true">
+      <div class="node"><span class="label">Your browser</span><p>Locks every message with the key</p></div>
+      <div class="wire"><span>ciphertext</span></div>
+      <div class="node dim"><span class="label">Cloudflare</span><p>Relays and stores scrambled data</p></div>
+      <div class="wire"><span>ciphertext</span></div>
+      <div class="node"><span class="label">Friend's browser</span><p>Unlocks it with the same key</p></div>
+    </div>
+    <div class="ledger">
+      <div><span class="label">Encrypted end to end</span><ul><li>Chat messages and reactions</li><li>Names and colors</li><li>The show or file you're watching</li><li>Play, pause and seek positions</li><li>Uploaded video files</li></ul></div>
+      <div><span class="label">What the server can see</span><ul><li>A random party id</li><li>How many people are connected</li><li>When messages are sent, and their size</li><li>Who is host, and whether only the host controls playback</li></ul></div>
+    </div>
+  </section>
+
+  <section class="section" id="faq">
+    <div class="section-head"><span class="label">04 · Questions</span><h2>Good to know</h2></div>
+    <div class="faq">
+      <details><summary>Is it actually free?</summary><p>Yes. No accounts, ads or paid tier. It runs on Cloudflare's free plan, and the code is MIT licensed, so you can host your own copy.</p></details>
+      <details><summary>Does everyone need a subscription?</summary><p>For Netflix, Hulu and Peacock, yes. Each person streams from their own account, and Backrow only keeps the players in sync. YouTube and uploaded videos need no account.</p></details>
+      <details><summary>Why isn't it in the Chrome Web Store?</summary><p>Not yet. Loading it in Developer mode takes a minute and runs the same code you can read on GitHub.</p></details>
+      <details><summary>Firefox or Safari?</summary><p>The extension is Chromium-only for now. Uploaded videos play in any modern browser, phones included.</p></details>
+      <details><summary>What happens to my upload?</summary><p>Only encrypted chunks ever reach the server. The file is deleted once the party has been empty for a few hours, and within a day at most.</p></details>
+      <details><summary>How tight is the sync?</summary><p>Pauses and seeks reach everyone in well under a second. If someone drifts a little, Backrow speeds them up or slows them down slightly until they catch up, instead of jumping.</p></details>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span>Backrow is not affiliated with Netflix, Hulu, Peacock or YouTube.</span>
+    <span><a href="https://github.com/neelsatyavolu/backrow">Source</a> · <a href="https://github.com/neelsatyavolu/backrow/blob/main/LICENSE">MIT License</a></span>
+  </footer>
+</div>
+<script type="module" src="/home.js"></script>
+</body>
+</html>
