@@ -95,9 +95,12 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline:2px 
 .float .e { font-size:40px; line-height:1; }
 .float .n { font:11px/1 var(--mono); color:#F2F0EA; background:rgba(14,14,13,.7); padding:3px 6px; }
 @keyframes rise { 0% { transform:translateY(0); opacity:0; } 10% { opacity:1; } 80% { opacity:1; } 100% { transform:translateY(-46vh); opacity:0; } }
-.chat-toasts { position:fixed; top:16px; right:16px; width:min(320px, calc(100vw - 32px)); display:flex; flex-direction:column; gap:8px; z-index:2147483647; }
-.chat-toast { background:var(--bg); color:var(--fg); border:1px solid var(--border-strong); font:14px/1.45 var(--sans); -webkit-font-smoothing:antialiased; animation:toast-in 200ms var(--ease); transition:opacity 180ms var(--ease), transform 180ms var(--ease); }
-.chat-toast.out { opacity:0; transform:translateX(8px); }
+.chat-toasts { position:fixed; top:16px; right:16px; width:min(320px, calc(100vw - 32px)); display:flex; flex-direction:column; z-index:2147483647; }
+/* Leaving toasts collapse to zero height (grid 1fr -> 0fr) so the rest glide up instead of jumping. */
+.chat-toast { display:grid; grid-template-rows:1fr; margin-bottom:8px; animation:toast-in 200ms var(--ease); transition:grid-template-rows 240ms var(--ease), margin-bottom 240ms var(--ease), opacity 160ms var(--ease), transform 160ms var(--ease); }
+.chat-toast.out { grid-template-rows:0fr; margin-bottom:0; opacity:0; transform:translateX(8px); pointer-events:none; }
+.ct-inner { min-height:0; overflow:hidden; }
+.ct-box { background:var(--bg); color:var(--fg); border:1px solid var(--border-strong); font:14px/1.45 var(--sans); -webkit-font-smoothing:antialiased; }
 .ct-body { display:grid; grid-template-columns:24px 1fr; gap:0 10px; width:100%; padding:12px 12px 8px; text-align:left; transition:background 150ms var(--ease); }
 .ct-body:hover { background:var(--surface-hover); }
 .ct-body .text { grid-column:2; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }

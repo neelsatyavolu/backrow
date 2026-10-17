@@ -49,6 +49,8 @@ function avatar(m: Pick<Member, "name" | "color" | "photo">, host = false, cls =
 /** How long a chat toast stays up, unless it is hovered or being replied to. */
 const CHAT_TOAST_MS = 6000;
 const CHAT_TOASTS_MAX = 3;
+/** Matches the collapse transition in panel-css. */
+const CHAT_TOAST_OUT_MS = 260;
 
 const clock = (at: number) => new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
@@ -328,6 +330,7 @@ export class ChatPanel {
   /** A message that arrived while the chat is hidden, with a reply field. */
   private chatToast(entry: ChatEntry, seq: number): void {
     const card = h("div", "chat-toast");
+    const inner = h("div", "ct-inner");
     const body = h("button", "ct-body");
     body.type = "button";
     body.title = "Open the chat";
@@ -343,13 +346,16 @@ export class ChatPanel {
     input.maxLength = CHAT_MAX;
     input.setAttribute("aria-label", `Reply to ${entry.name}`);
     form.append(input);
-    card.append(body, form);
+    // card (collapses) > inner (clips to 0) > box (border), so nothing is left to snap.
+    const box = h("div", "ct-box");
+    box.append(body, form);
+    inner.append(box);
+    card.append(inner);
 
     let timer: ReturnType<typeof setTimeout> | null = null;
     const dismiss = () => {
       if (timer) clearTimeout(timer);
-      card.classList.add("out");
-      setTimeout(() => card.remove(), 200);
+      this.fadeToast(card);
     };
     // Stays up while hovered, focused or holding an unsent reply.
     const arm = () => {
@@ -375,8 +381,15 @@ export class ChatPanel {
     for (const type of ["keyup", "keypress"]) input.addEventListener(type, (e) => e.stopPropagation());
 
     this.chatToasts.append(card);
-    while (this.chatToasts.children.length > CHAT_TOASTS_MAX) this.chatToasts.firstElementChild?.remove();
+    const showing = [...this.chatToasts.querySelectorAll<El>(".chat-toast:not(.out)")];
+    for (const old of showing.slice(0, Math.max(0, showing.length - CHAT_TOASTS_MAX))) this.fadeToast(old);
     arm();
+  }
+
+  private fadeToast(card: El): void {
+    if (card.classList.contains("out")) return;
+    card.classList.add("out");
+    setTimeout(() => card.remove(), CHAT_TOAST_OUT_MS);
   }
 
   renderStatus(status: ConnectionStatus): void {
