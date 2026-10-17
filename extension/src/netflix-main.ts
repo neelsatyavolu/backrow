@@ -38,15 +38,19 @@ function player(): NetflixPlayer | null {
 document.addEventListener("backrow:netflix", (e) => {
   const detail = (e as CustomEvent<unknown>).detail;
   if (typeof detail !== "string") return;
-  let cmd: { cmd?: unknown; ms?: unknown };
+  let cmd: { cmd?: unknown; seconds?: unknown };
   try {
-    cmd = JSON.parse(detail) as { cmd?: unknown; ms?: unknown };
+    cmd = JSON.parse(detail) as { cmd?: unknown; seconds?: unknown };
   } catch {
     return;
   }
   const p = player();
   if (!p) return;
-  if (cmd.cmd === "seek" && typeof cmd.ms === "number" && Number.isFinite(cmd.ms) && cmd.ms >= 0) p.seek(cmd.ms);
+  const s = cmd.seconds;
+  if (cmd.cmd === "seek" && typeof s === "number" && Number.isFinite(s) && s >= 0) p.seek(Math.round(s * 1000));
   else if (cmd.cmd === "play") p.play();
   else if (cmd.cmd === "pause") p.pause();
 });
+
+// Module scope: keeps names out of the page and out of the other bridge.
+export {};

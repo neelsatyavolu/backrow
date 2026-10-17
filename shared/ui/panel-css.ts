@@ -38,6 +38,11 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline:2px 
 
 .people { display:flex; align-items:center; gap:6px; padding:10px 14px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
 .avatar { width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font:500 11px/1 var(--mono); color:#0E0E0D; flex:none; position:relative; }
+.avatar .photo { width:100%; height:100%; border-radius:50%; display:block; }
+.avatar.big { width:40px; height:40px; font-size:16px; }
+.photo-row { display:flex; align-items:center; gap:8px; }
+.photo-error { font-size:12px; color:var(--danger); min-height:0; }
+.photo-error:empty { display:none; }
 .avatar.host::after { content:""; position:absolute; right:-1px; bottom:-1px; width:7px; height:7px; border-radius:50%; background:var(--fg); border:2px solid var(--bg); }
 .people .count { font:12px/1 var(--mono); color:var(--fg-3); margin-left:4px; }
 

@@ -6,11 +6,15 @@ import { parseVideoUrl, type VideoRef } from "./services";
 export const AVATAR_COLORS = ["#4C8DFF", "#E5483A", "#4FBF85", "#E8A23B", "#C46BD6", "#3BC4C4", "#D6D06B", "#F2F0EA"];
 export const REACTIONS = ["😂", "😮", "😍", "😢", "🔥", "👏", "💀", "🍿"] as const;
 export const NAME_MAX = 24;
+/** Longest profile photo data URL (a 64px WebP/JPEG is usually 2-5 KB). */
+export const PHOTO_MAX = 8000;
 export const CHAT_MAX = 500;
 
 export interface Profile {
   name: string;
   color: number;
+  /** Small square image as a data URL, if the person set one. */
+  photo?: string;
 }
 
 export interface PlaybackState {
@@ -54,7 +58,11 @@ export function parseProfile(value: unknown): Profile | null {
   const name = cleanName(o?.name);
   const color = o?.color;
   if (!name || !Number.isInteger(color) || (color as number) < 0 || (color as number) >= AVATAR_COLORS.length) return null;
-  return { name, color: color as number };
+  const photo = o?.photo;
+  // Raster images only: they are decoded into a canvas, never put in markup.
+  const validPhoto =
+    typeof photo === "string" && photo.length <= PHOTO_MAX && /^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/]+=*$/.test(photo);
+  return validPhoto ? { name, color: color as number, photo } : { name, color: color as number };
 }
 
 export function parseState(value: unknown): PlaybackState | null {

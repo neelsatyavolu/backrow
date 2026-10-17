@@ -89,6 +89,74 @@ describe("SyncController", () => {
     expect(t.calls.some((c) => c.startsWith("seek"))).toBe(true);
   });
 
+  it("waits between drift seeks so a slow player never loops", () => {
+    const t = setup({ playing: true, position: 0, rate: 1, duration: 600, at: Date.now() }, true, { playing: true, position: 0 });
+    vi.advanceTimersByTime(1500);
+    const seeks = () => t.calls.filter((c) => c.startsWith("seek")).length;
+    for (let i = 0; i < 4; i++) {
+      t.snap.position = 0; // never catches up
+      vi.advanceTimersByTime(1000);
+    }
+    expect(seeks()).toBe(1);
+    // First seek was at t=3s; the cooldown allows the next one at t=8s.
+    t.snap.position = 0;
+    vi.advanceTimersByTime(3000);
+    expect(seeks()).toBe(2);
+  });
+
+  it("publishes a paused seek that fired no media events (Hulu)", () => {
+    const t = setup({ playing: false, position: 100, rate: 1, duration: 600, at: Date.now() }, true, { playing: false, position: 100 });
+    vi.advanceTimersByTime(2000);
+    t.snap.position = 900; // site seeked silently
+    vi.advanceTimersByTime(1000);
+    expect(t.sent.at(-1)).toMatchObject({ playing: false, position: 900 });
+  });
+
+  it("does not mistake a buffering stall for a seek", () => {
+    const t = setup({ playing: true, position: 10, rate: 1, duration: 600, at: Date.now() }, true, { playing: true, position: 10 });
+    for (let i = 0; i < 5; i++) vi.advanceTimersByTime(1000); // stuck at 10 while the room moves on
+    expect(t.sent).toHaveLength(0);
+  });
+
+  it("does not treat its own corrections as user seeks", () => {
+    const t = setup({ playing: false, position: 100, rate: 1, duration: 600, at: Date.now() }, true, { playing: false, position: 100 });
+    vi.advanceTimersByTime(2000);
+    const remote = { playing: false, position: 400, rate: 1, duration: 600, at: Date.now() };
+    t.setRoom(remote);
+    t.ctl.applyRemote(remote);
+    vi.advanceTimersByTime(3000);
+    expect(t.sent).toHaveLength(0);
+  });
+
+  it("honours a user pause that lands right after its own correction", () => {
+    const t = setup({ playing: true, position: 50, rate: 1, duration: 600, at: Date.now() }, true, { playing: true, position: 30 });
+    t.ctl.applyRemote({ playing: true, position: 50, rate: 1, duration: 600, at: Date.now() });
+    vi.advanceTimersByTime(300);
+    t.snap.playing = false; // user pauses inside the echo window
+    t.fire("pause");
+    expect(t.sent).toHaveLength(0);
+    vi.advanceTimersByTime(800);
+    expect(t.sent.at(-1)).toMatchObject({ playing: false });
+  });
+
+  it("ignores a site's brief pause inside its own seek (Netflix)", () => {
+    const t = setup({ playing: true, position: 50, rate: 1, duration: 600, at: Date.now() }, true, { playing: true, position: 30 });
+    t.ctl.applyRemote({ playing: true, position: 50, rate: 1, duration: 600, at: Date.now() });
+    t.snap.playing = false;
+    t.fire("pause");
+    t.snap.playing = true;
+    t.fire("play");
+    t.snap.position = 50.95; // a real player keeps playing through the window
+    vi.advanceTimersByTime(1200);
+    expect(t.sent).toHaveLength(0);
+  });
+
+  it("does not chase the clock while buffering", () => {
+    const t = setup({ playing: true, position: 0, rate: 1, duration: 600, at: Date.now() }, true, { playing: true, position: 0, buffering: true });
+    vi.advanceTimersByTime(6000);
+    expect(t.calls.filter((c) => c.startsWith("seek") || c.startsWith("rate"))).toHaveLength(0);
+  });
+
   it("ignores state for a different video length (an ad)", () => {
     const t = setup(null, true, { playing: true, position: 3, duration: 30 });
     t.ctl.applyRemote({ playing: true, position: 300, rate: 1, duration: 3000, at: Date.now() });

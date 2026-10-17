@@ -6,6 +6,7 @@ import { PartyClient } from "../../shared/party-client";
 import { AVATAR_COLORS, parseVideo, type Profile } from "../../shared/payload";
 import type { UploadedVideo } from "../../shared/services";
 import { SyncController, type PlayerAdapter, type PlayerEvent } from "../../shared/sync-controller";
+import { fileToAvatar, photoCanvas } from "../../shared/ui/avatar-image";
 import { ChatPanel } from "../../shared/ui/panel";
 import { el, load, loadProfile, partyFromLocation, saveProfile } from "./local";
 
@@ -25,7 +26,13 @@ const adapter: PlayerAdapter = {
   snapshot: () =>
     video.readyState === 0 || !Number.isFinite(video.duration)
       ? null
-      : { playing: !video.paused, position: video.currentTime, rate: video.playbackRate, duration: video.duration },
+      : {
+          playing: !video.paused,
+          position: video.currentTime,
+          rate: video.playbackRate,
+          duration: video.duration,
+          buffering: video.seeking || video.readyState < 3,
+        },
   play: () => {
     video.play().catch(() => showUnblock());
   },
@@ -100,11 +107,49 @@ function askProfile(media: UploadedVideo, members: number): Promise<Profile> {
           b.onclick = () => {
             profile = { ...profile, color: i };
             paint();
+            paintPhoto();
           };
           return b;
         }),
       );
     paint();
+    const photoRow = el("div", "photo-row");
+    const photoErr = el("p", "error");
+    const file = el("input");
+    file.type = "file";
+    file.accept = "image/*";
+    file.hidden = true;
+    const paintPhoto = () => {
+      const face = el("span", "gate-avatar");
+      face.style.background = AVATAR_COLORS[profile.color] ?? AVATAR_COLORS[0]!;
+      face.append(profile.photo ? photoCanvas(profile.photo, "") : document.createTextNode((name.value || profile.name).slice(0, 1).toUpperCase()));
+      const pick = el("button", "btn ghost", profile.photo ? "Change photo" : "Add photo");
+      pick.onclick = () => file.click();
+      const parts: HTMLElement[] = [face, pick];
+      if (profile.photo) {
+        const remove = el("button", "btn ghost", "Remove");
+        remove.onclick = () => {
+          const { photo: _removed, ...rest } = profile;
+          profile = rest;
+          paintPhoto();
+        };
+        parts.push(remove);
+      }
+      photoRow.replaceChildren(...parts, file);
+    };
+    file.onchange = async () => {
+      const picked = file.files?.[0];
+      file.value = "";
+      if (!picked) return;
+      photoErr.textContent = "";
+      try {
+        profile = { ...profile, photo: await fileToAvatar(picked) };
+        paintPhoto();
+      } catch (err) {
+        photoErr.textContent = err instanceof Error ? err.message : "That image couldn't be used.";
+      }
+    };
+    paintPhoto();
     const join = el("button", "btn accent", "Join party");
     const go = () => {
       profile = { ...profile, name: name.value.trim().slice(0, 24) || profile.name };
@@ -116,8 +161,12 @@ function askProfile(media: UploadedVideo, members: number): Promise<Profile> {
     gateCard.replaceChildren(
       el("span", "label", `Uploaded video · ${members} watching`),
       el("p", "title", media.name),
-      el("span", "label", "Your name"),
+      el("span", "label", "Your photo"),
+      photoRow,
+      photoErr,
+      el("span", "label", "Display name"),
       name,
+      el("span", "label", "Color"),
       swatches,
       join,
       el("p", "meta", "The video and chat are end-to-end encrypted. The file is deleted within a day."),

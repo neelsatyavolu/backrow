@@ -11,18 +11,24 @@ const common = { bundle: true, target: "es2022", minify: true, sourcemap: false,
 // Extension
 rmSync("extension/dist", { recursive: true, force: true });
 mkdirSync("extension/dist/icons", { recursive: true });
+const define = { __BACKROW_SERVER__: JSON.stringify(SERVER) };
+await build({ ...common, entryPoints: { background: "extension/src/background.ts" }, outdir: "extension/dist", format: "esm", define });
+// Scripts that run inside web pages must not leak top-level names: Netflix's
+// own minified globals (e.g. \`i\`) silently replaced ours when this was ESM.
 await build({
   ...common,
   entryPoints: {
-    background: "extension/src/background.ts",
     content: "extension/src/content.ts",
     "netflix-main": "extension/src/netflix-main.ts",
+    "hulu-main": "extension/src/hulu-main.ts",
+    "fullscreen-main": "extension/src/fullscreen-main.ts",
+    "peacock-main": "extension/src/peacock-main.ts",
     "join-bridge": "extension/src/join-bridge.ts",
     popup: "extension/src/popup.ts",
   },
   outdir: "extension/dist",
-  format: "esm",
-  define: { __BACKROW_SERVER__: JSON.stringify(SERVER) },
+  format: "iife",
+  define,
 });
 const sites = ["https://www.netflix.com/*", "https://www.hulu.com/*", "https://www.peacocktv.com/*", "https://www.youtube.com/*", "https://m.youtube.com/*"];
 const manifest = {
@@ -37,8 +43,11 @@ const manifest = {
   permissions: ["storage", "tabs"],
   host_permissions: [...sites, `${SERVER}/*`],
   content_scripts: [
-    { matches: sites, js: ["content.js"], run_at: "document_start" },
+    { matches: sites, js: ["content.js"], css: ["page.css"], run_at: "document_start" },
     { matches: ["https://www.netflix.com/*"], js: ["netflix-main.js"], run_at: "document_start", world: "MAIN" },
+    { matches: ["https://www.hulu.com/*"], js: ["hulu-main.js"], run_at: "document_start", world: "MAIN" },
+    { matches: sites, js: ["fullscreen-main.js"], run_at: "document_start", world: "MAIN" },
+    { matches: ["https://www.peacocktv.com/*"], js: ["peacock-main.js"], run_at: "document_start", world: "MAIN" },
     { matches: [`${SERVER}/p/*`], js: ["join-bridge.js"], run_at: "document_start" },
   ],
   minimum_chrome_version: "116",
@@ -46,6 +55,7 @@ const manifest = {
 writeFileSync("extension/dist/manifest.json", JSON.stringify(manifest, null, 2));
 cpSync("extension/popup.html", "extension/dist/popup.html");
 cpSync("extension/popup.css", "extension/dist/popup.css");
+cpSync("extension/page.css", "extension/dist/page.css");
 cpSync("extension/icons", "extension/dist/icons", { recursive: true });
 
 // Web pages served by the Worker

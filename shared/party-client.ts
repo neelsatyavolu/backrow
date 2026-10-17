@@ -24,6 +24,7 @@ export interface ChatEntry {
   from: string;
   name: string;
   color: number;
+  photo?: string;
   text: string;
   at: number;
 }
@@ -235,7 +236,7 @@ export class PartyClient {
     const chat = parseChat(await openJson(await this.key, w.blob));
     if (!chat) return null;
     const who = members.find((m) => m.id === w.from) ?? { id: w.from, ...UNKNOWN };
-    return { id: w.id, from: w.from, name: who.name, color: who.color, text: chat.text, at: w.at };
+    return { id: w.id, from: w.from, name: who.name, color: who.color, photo: who.photo, text: chat.text, at: w.at };
   }
 
   private async receive(raw: string): Promise<void> {

@@ -22,6 +22,9 @@ To watch your own file, upload it on [backrow.n3el.dev](https://backrow.n3el.dev
 - A chat with reactions, typing indicators, join/leave notices and "Maya paused at 41:02" events.
 - An optional host-only mode, where only the host controls playback.
 - Encrypted uploads of up to 2 GB, streamed with seeking support and deleted automatically.
+- Profiles with a display name, color and optional photo, all end-to-end encrypted like the chat.
+- The video shrinks beside the chat (animated) instead of being covered, including in fullscreen.
+- Peacock sync stays on the show even when viewers get different ad breaks.
 - No accounts, no ads, no tracking.
 
 ## Privacy model
@@ -56,6 +59,10 @@ worker/      Cloudflare Worker
 shared/      protocol, crypto, sync math, chat panel (used by all of the above)
 ```
 
+## Debugging sync
+
+To see every sync decision in the console of a streaming tab, run `localStorage.setItem("backrow:debug", "1")` there and reload. Please include that output when reporting a sync bug.
+
 ## Develop
 
 ```sh
@@ -81,8 +88,10 @@ BACKROW_SERVER=https://your.domain npm run deploy
 ## Limits and known gaps
 
 - The extension supports Chromium browsers only. Firefox and Safari can join uploaded-video parties in the browser.
-- YouTube and uploaded videos were tested end to end with two separate browsers. Netflix, Hulu and Peacock need paid accounts and haven't been tested yet. Hulu and Peacock use the page's standard `<video>` element. Netflix seeks through its internal player API, since writing `currentTime` directly triggers a Netflix error. Reports welcome.
-- Ads on Hulu and Peacock aren't detected directly. Sync pauses while the video lengths don't match, which covers most ad breaks.
+- All four services were tested end to end with two separate browser profiles (Google Chrome for the DRM services): Netflix, Hulu, Peacock and YouTube, plus uploaded videos. The tests covered pause, play, seeks from either side (including paused seeks), and steady playback, which held within about 0.3 s.
+- Netflix and Hulu are driven through their own player APIs (`netflix-main.ts`, `hulu-main.ts`). Netflix errors if `currentTime` is written directly. Hulu only buffers a little ahead, so a plain seek gets clamped, and its element clock runs a few seconds off the content clock.
+- Hulu ads play in a separate player and are detected. Peacock stitches ads into the stream, so Backrow reads Peacock's ad-break list and syncs on ad-free show time; viewers with different ads stay on the same scene. YouTube ads pause syncing until they end.
+- The resize-beside-chat layout was verified on Netflix, Hulu and Peacock (and fullscreen on Netflix). YouTube uses a lighter rule because its page scrolls; that layout hasn't been checked in a browser yet.
 - No video or voice call.
 
 ## License

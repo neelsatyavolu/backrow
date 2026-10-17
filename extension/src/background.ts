@@ -26,15 +26,19 @@ const here = new Map<number, StreamingVideo | null>();
 
 const tabKey = (tabId: number) => `tab:${tabId}`;
 
+// Stored locally, not in chrome.storage.sync: a photo can exceed sync's 8 KB per-item limit.
 async function getProfile(): Promise<Profile> {
-  const { profile } = await chrome.storage.sync.get("profile");
-  const parsed = parseProfile(profile);
-  if (parsed) return parsed;
+  const { profile } = await chrome.storage.local.get("profile");
+  const parsed = parseProfile(profile) ?? parseProfile((await chrome.storage.sync.get("profile")).profile);
+  if (parsed) {
+    if (!profile) await chrome.storage.local.set({ profile: parsed });
+    return parsed;
+  }
   const fresh: Profile = {
     name: `Guest ${Math.floor(100 + Math.random() * 900)}`,
     color: Math.floor(Math.random() * AVATAR_COLORS.length),
   };
-  await chrome.storage.sync.set({ profile: fresh });
+  await chrome.storage.local.set({ profile: fresh });
   return fresh;
 }
 
@@ -138,8 +142,9 @@ async function handlePort(tabId: number, msg: PortIn): Promise<void> {
   if (msg.type === "profile") {
     const profile = parseProfile(msg.profile);
     if (!profile) return;
-    await chrome.storage.sync.set({ profile });
+    await chrome.storage.local.set({ profile });
     for (const l of live.values()) await l.client.setProfile(profile);
+    for (const tabId of ports.keys()) await pushSession(tabId);
     return;
   }
   const l = live.get(tabId);
@@ -199,7 +204,6 @@ chrome.runtime.onMessage.addListener((msg: RuntimeIn, sender, reply) => {
         return getProfile();
       case "set-profile": {
         await handlePort(-1, { type: "profile", profile: msg.profile });
-        for (const tabId of ports.keys()) await pushSession(tabId);
         return { ok: true };
       }
       case "join": {

@@ -6,6 +6,8 @@ export type ControlMode = "everyone" | "host";
 
 export const LIMITS = {
   blob: 6000,
+  /** Profiles can carry a small photo, so they get more room than other blobs. */
+  profile: 12000,
   frame: 16000,
   history: 150,
   members: 50,
@@ -62,8 +64,8 @@ export type ServerMessage =
 
 const BLOB_RE = /^[A-Za-z0-9_-]+$/;
 
-export function isBlob(value: unknown): value is string {
-  return typeof value === "string" && value.length > 16 && value.length <= LIMITS.blob && BLOB_RE.test(value);
+export function isBlob(value: unknown, max: number = LIMITS.blob): value is string {
+  return typeof value === "string" && value.length > 16 && value.length <= max && BLOB_RE.test(value);
 }
 
 /** Validates an untrusted client frame. Returns null for anything malformed. */
@@ -79,7 +81,7 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
   }
   switch (m.t) {
     case "hello": {
-      if (!isBlob(m.profile)) return null;
+      if (!isBlob(m.profile, LIMITS.profile)) return null;
       if (m.hostKey !== undefined && (typeof m.hostKey !== "string" || !/^[A-Za-z0-9_-]{16,64}$/.test(m.hostKey))) return null;
       return m.hostKey ? { t: "hello", profile: m.profile, hostKey: m.hostKey } : { t: "hello", profile: m.profile };
     }
@@ -89,7 +91,7 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
     case "react":
       return isBlob(m.blob) ? { t: m.t, blob: m.blob } : null;
     case "profile":
-      return isBlob(m.profile) ? { t: "profile", profile: m.profile } : null;
+      return isBlob(m.profile, LIMITS.profile) ? { t: "profile", profile: m.profile } : null;
     case "typing":
       return typeof m.on === "boolean" ? { t: "typing", on: m.on } : null;
     case "control":

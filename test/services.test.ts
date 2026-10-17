@@ -30,6 +30,15 @@ describe("payload validation", () => {
     expect(parseProfile({ name: "x", color: 99 })).toBeNull();
   });
 
+  it("profile photos", () => {
+    const photo = "data:image/webp;base64," + "A".repeat(200) + "==";
+    expect(parseProfile({ name: "A", color: 0, photo })).toEqual({ name: "A", color: 0, photo });
+    // Unknown, oversized or markup-capable values are dropped, not the whole profile.
+    expect(parseProfile({ name: "A", color: 0, photo: "data:image/svg+xml;base64,PHN2Zz4=" })).toEqual({ name: "A", color: 0 });
+    expect(parseProfile({ name: "A", color: 0, photo: "javascript:alert(1)" })).toEqual({ name: "A", color: 0 });
+    expect(parseProfile({ name: "A", color: 0, photo: "data:image/png;base64," + "A".repeat(9000) })).toEqual({ name: "A", color: 0 });
+  });
+
   it("playback state", () => {
     const ok = { playing: true, position: 12, rate: 1, duration: 100, at: 5 };
     expect(parseState(ok)).toEqual(ok);

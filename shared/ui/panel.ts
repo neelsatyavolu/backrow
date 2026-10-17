@@ -6,6 +6,7 @@ import { AVATAR_COLORS, CHAT_MAX, NAME_MAX, REACTIONS, type PlaybackState, type 
 import type { ControlMode } from "../protocol";
 import { expectedPosition, formatTime } from "../sync";
 import { applyEvent } from "../room-mirror";
+import { fileToAvatar, photoCanvas } from "./avatar-image";
 import { PANEL_CSS } from "./panel-css";
 
 export interface PanelActions {
@@ -23,6 +24,8 @@ export interface PanelOptions {
   /** Docked panels sit in the page layout (web player); floating ones overlay a site. */
   docked: boolean;
   profile: Profile;
+  /** Called when the panel is expanded or collapsed. */
+  onOpenChange?(open: boolean): void;
 }
 
 type El = HTMLElement;
@@ -34,9 +37,11 @@ function h<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: s
   return el;
 }
 
-function avatar(m: Pick<Member, "name" | "color">, host = false): El {
-  const a = h("span", host ? "avatar host" : "avatar", m.name.slice(0, 1).toUpperCase());
+function avatar(m: Pick<Member, "name" | "color" | "photo">, host = false, cls = "avatar"): El {
+  const a = h("span", host ? `${cls} host` : cls);
   a.style.background = AVATAR_COLORS[m.color] ?? AVATAR_COLORS[0]!;
+  if (m.photo) a.append(photoCanvas(m.photo, "photo"));
+  else a.textContent = m.name.slice(0, 1).toUpperCase();
   a.title = host ? `${m.name} (host)` : m.name;
   return a;
 }
@@ -56,6 +61,8 @@ export class ChatPanel {
   private controlToggle!: HTMLInputElement;
   private nameInput!: HTMLInputElement;
   private swatches: HTMLButtonElement[] = [];
+  private photoRow!: El;
+  private photoError!: El;
   private input!: HTMLTextAreaElement;
   private floats!: El;
   private snap: RoomSnapshot | null = null;
@@ -192,8 +199,50 @@ export class ChatPanel {
     leave.style.alignSelf = "flex-start";
     leave.style.paddingLeft = "0";
     leave.onclick = () => this.actions.leave();
-    box.append(nameLabel, this.nameInput, h("span", "label", "Color"), sw, toggle, leave);
+    this.photoRow = h("div", "photo-row");
+    this.photoError = h("p", "photo-error");
+    this.renderPhotoRow();
+    box.append(h("span", "label", "Photo"), this.photoRow, this.photoError, nameLabel, this.nameInput, h("span", "label", "Color"), sw, toggle, leave);
     return box;
+  }
+
+  private renderPhotoRow(): void {
+    const file = h("input");
+    file.type = "file";
+    file.accept = "image/*";
+    file.hidden = true;
+    file.onchange = async () => {
+      const picked = file.files?.[0];
+      if (!picked) return;
+      this.photoError.textContent = "";
+      try {
+        this.profile = { ...this.profile, photo: await fileToAvatar(picked) };
+        this.saveProfile();
+      } catch (err) {
+        this.photoError.textContent = err instanceof Error ? err.message : "That image couldn't be used.";
+      }
+    };
+    const upload = h("button", "icon-btn", this.profile.photo ? "Change" : "Upload");
+    upload.onclick = () => file.click();
+    const parts: El[] = [avatar(this.profile, false, "avatar big"), upload, file];
+    if (this.profile.photo) {
+      const remove = h("button", "icon-btn", "Remove");
+      remove.onclick = () => {
+        const { photo: _drop, ...rest } = this.profile;
+        this.profile = rest;
+        this.saveProfile();
+      };
+      parts.push(remove);
+    }
+    this.photoRow.replaceChildren(...parts);
+  }
+
+  /** Profile changed elsewhere (the extension popup): refresh the settings. */
+  updateProfile(profile: Profile): void {
+    this.profile = profile;
+    this.nameInput.value = profile.name;
+    this.swatches.forEach((b, i) => b.setAttribute("aria-pressed", String(i === profile.color)));
+    this.renderPhotoRow();
   }
 
   private saveProfile(): void {
@@ -201,6 +250,7 @@ export class ChatPanel {
     this.profile = { ...this.profile, name };
     this.nameInput.value = name;
     this.swatches.forEach((b, i) => b.setAttribute("aria-pressed", String(i === this.profile.color)));
+    this.renderPhotoRow();
     this.actions.setProfile(this.profile);
   }
 
@@ -208,6 +258,7 @@ export class ChatPanel {
     this.panel.classList.toggle("hidden", !open);
     this.tab.classList.toggle("show", !open);
     this.floats.classList.toggle("full", !open || this.opts.docked);
+    this.opts.onOpenChange?.(open);
     if (open) {
       this.unread = 0;
       this.renderTab();

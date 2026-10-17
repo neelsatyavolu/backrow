@@ -18,7 +18,9 @@ describe("sync math", () => {
     const behind = correction(99, 100, 1, true);
     expect(behind.kind === "nudge" && behind.rate > 1).toBe(true);
     expect(correction(90, 100, 1, true)).toEqual({ kind: "seek", position: 100 });
-    expect(correction(101, 100, 1, false)).toEqual({ kind: "seek", position: 100 });
+    // Seek-only players (Netflix) tolerate more drift before seeking.
+    expect(correction(101, 100, 1, false)).toEqual({ kind: "none" });
+    expect(correction(101.5, 100, 1, false)).toEqual({ kind: "seek", position: 100 });
   });
 
   it("detects echoes of the room state", () => {

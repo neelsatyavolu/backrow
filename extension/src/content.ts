@@ -37,7 +37,15 @@ function send(msg: PortIn): void {
 
 const canControl = () => !!room && (room.control === "everyone" || room.host === room.you);
 
+let debugOn = false;
+try {
+  debugOn = localStorage.getItem("backrow:debug") === "1";
+} catch {
+  // Storage blocked; stay quiet.
+}
+
 const link: SyncLink = {
+  debug: debugOn ? (msg, data) => console.debug("[backrow]", msg, JSON.stringify(data ?? "")) : undefined,
   serverNow: () => Date.now() + offset,
   roomState: () => room?.state ?? null,
   canControl,
@@ -70,7 +78,29 @@ function isolateKeys(): void {
   }
 }
 
+let panelOpen = true;
+
+/** Tells page.css whether to shrink the page beside the panel. */
+function layout(): void {
+  const html = document.documentElement;
+  const active = !!panel && !!currentVideo();
+  html.classList.toggle("backrow-watch", active);
+  html.classList.toggle("backrow-open", active && panelOpen);
+  // Only an element other than the page itself can't be resized: during a
+  // party, fullscreen-main.ts makes the whole page fullscreen instead.
+  const fs = document.fullscreenElement;
+  html.classList.toggle("backrow-fs", !!fs && fs !== html);
+  if (service) html.dataset.backrowSite = service;
+}
+
+/** Players lay themselves out on resize; nudge them once the width settles. */
+function relayout(): void {
+  layout();
+  setTimeout(() => window.dispatchEvent(new Event("resize")), 270);
+}
+
 function placeHost(): void {
+  layout();
   if (!hostEl) return;
   const fs = document.fullscreenElement;
   const parent = fs && !(fs instanceof HTMLVideoElement) ? fs : document.documentElement;
@@ -94,8 +124,16 @@ function mount(info: SessionInfo): void {
     inviteUrl: () => session?.invite ?? info.invite,
     leave: () => send({ type: "leave" }),
     serverNow: link.serverNow,
-  }, { docked: false, profile });
+  }, {
+    docked: false,
+    profile,
+    onOpenChange: (open) => {
+      panelOpen = open;
+      relayout();
+    },
+  });
   placeHost();
+  relayout();
   if (player) {
     sync = new SyncController(player, link);
     sync.start();
@@ -111,6 +149,7 @@ function unmount(): void {
   hostEl = null;
   room = null;
   hadPlayer = false;
+  relayout();
 }
 
 /** Brings this tab to the party's video, or explains why it can't. */
@@ -138,6 +177,7 @@ function onSnapshot(): void {
 }
 
 function onEvent(event: PartyEvent): void {
+  link.debug?.(`event ${event.type}`, event.type === "state" ? event.state : event.type === "snapshot" ? { video: event.snapshot.video?.id, state: event.snapshot.state } : undefined);
   room = applyEvent(room, event);
   panel?.handle(event);
   if (event.type === "snapshot") onSnapshot();
@@ -147,6 +187,7 @@ function onEvent(event: PartyEvent): void {
 
 function onMessage(msg: PortOut): void {
   if (msg.type === "session") {
+    if (JSON.stringify(msg.profile) !== JSON.stringify(profile)) panel?.updateProfile(msg.profile);
     profile = msg.profile;
     session = msg.session;
     if (!session) {
@@ -180,6 +221,7 @@ function poll(): void {
   if (!sameVideo(video, lastHere) || video?.title !== lastHere?.title) {
     const changed = !sameVideo(video, lastHere);
     lastHere = video;
+    if (changed) relayout();
     send({ type: "here", video });
     if (changed && video && room && !sameVideo(video, room.video) && canControl()) {
       // You moved to another video (next episode): take the party with you.
@@ -197,5 +239,8 @@ if (service) {
   isolateKeys();
   connect();
   setInterval(poll, 1000);
-  document.addEventListener("fullscreenchange", placeHost);
+  document.addEventListener("fullscreenchange", () => {
+    placeHost();
+    setTimeout(() => window.dispatchEvent(new Event("resize")), 100);
+  });
 }

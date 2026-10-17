@@ -173,3 +173,6 @@ code{font:13px var(--mono);color:var(--fg);background:var(--surface);padding:1px
   .section{padding-top:56px}
 }
 @media (prefers-reduced-motion:reduce){.mock-react{animation:none;opacity:.9}}
+.photo-row{display:flex;align-items:center;gap:10px}
+.gate-avatar{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font:500 17px var(--mono);color:#0E0E0D;overflow:hidden;flex:none}
+.gate-avatar canvas{width:100%;height:100%;display:block}

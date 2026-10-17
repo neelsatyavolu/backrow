@@ -1,10 +1,16 @@
 import { AVATAR_COLORS, type Profile } from "../../shared/payload";
+import { fileToAvatar, photoCanvas } from "../../shared/ui/avatar-image";
 import { SERVICE_LABELS } from "../../shared/services";
 import { SERVER, type PopupStatus, type RuntimeIn } from "./messages";
 
 const view = document.getElementById("view")!;
 const nameInput = document.getElementById("name") as HTMLInputElement;
 const swatches = document.getElementById("swatches")!;
+const avatarEl = document.getElementById("avatar")!;
+const photoBtn = document.getElementById("photo") as HTMLButtonElement;
+const removeBtn = document.getElementById("removePhoto") as HTMLButtonElement;
+const photoFile = document.getElementById("photoFile") as HTMLInputElement;
+const photoError = document.getElementById("photoError")!;
 (document.getElementById("home") as HTMLAnchorElement).href = SERVER;
 
 let tabId = -1;
@@ -21,6 +27,10 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = "", text?: stri
 
 function renderProfile(): void {
   nameInput.value = profile.name;
+  avatarEl.style.background = AVATAR_COLORS[profile.color] ?? AVATAR_COLORS[0]!;
+  avatarEl.replaceChildren(profile.photo ? photoCanvas(profile.photo, "") : document.createTextNode(profile.name.slice(0, 1).toUpperCase()));
+  photoBtn.textContent = profile.photo ? "Change photo" : "Upload photo";
+  removeBtn.hidden = !profile.photo;
   swatches.replaceChildren(
     ...AVATAR_COLORS.map((color, i) => {
       const b = el("button", "swatch");
@@ -42,6 +52,30 @@ async function saveProfile(next: Profile): Promise<void> {
 }
 
 nameInput.addEventListener("change", () => saveProfile({ ...profile, name: nameInput.value }));
+// On macOS the file picker closes the toolbar popup before a file comes back,
+// so from the popup this opens the same page in a tab, where picking works.
+const inToolbarPopup = chrome.extension.getViews({ type: "popup" }).includes(window);
+const profileOnly = new URLSearchParams(location.search).get("edit") === "profile";
+photoBtn.addEventListener("click", () => {
+  if (inToolbarPopup) void chrome.tabs.create({ url: chrome.runtime.getURL("popup.html?edit=profile") });
+  else photoFile.click();
+});
+photoFile.addEventListener("change", async () => {
+  const file = photoFile.files?.[0];
+  photoFile.value = "";
+  if (!file) return;
+  photoError.hidden = true;
+  try {
+    await saveProfile({ ...profile, photo: await fileToAvatar(file) });
+  } catch (err) {
+    photoError.textContent = err instanceof Error ? err.message : "That image couldn't be used.";
+    photoError.hidden = false;
+  }
+});
+removeBtn.addEventListener("click", () => {
+  const { photo: _removed, ...rest } = profile;
+  void saveProfile(rest);
+});
 
 function render(status: PopupStatus): void {
   view.replaceChildren();
@@ -117,6 +151,11 @@ async function refresh(): Promise<void> {
   profile = status.profile;
   renderProfile();
   render(status);
+}
+
+if (profileOnly) {
+  document.body.classList.add("profile-page");
+  view.hidden = true;
 }
 
 refresh().catch(() => {

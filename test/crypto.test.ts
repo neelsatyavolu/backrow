@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parseClientMessage } from "../shared/protocol";
 import { fromBase64Url, importKey, newKeyText, openJson, randomId, sealJson, toBase64Url } from "../shared/crypto";
 import { CHUNK_PLAIN, CHUNK_SEALED, chunkCount, importMediaKey, openChunk, partCount, sealChunk, sealedSize, sealedSpan } from "../shared/media-crypto";
 
@@ -29,6 +30,16 @@ describe("room encryption", () => {
     expect(fromBase64Url(toBase64Url(bytes))).toEqual(bytes);
     await expect(importKey(toBase64Url(new Uint8Array(16)))).rejects.toThrow();
     expect(randomId(12)).toMatch(/^[a-z2-9]{12}$/);
+  });
+});
+
+describe("protocol limits", () => {
+  it("lets profiles carry a photo but keeps other blobs small", () => {
+    const big = "A".repeat(10000);
+    expect(parseClientMessage(JSON.stringify({ t: "profile", profile: big }))).not.toBeNull();
+    expect(parseClientMessage(JSON.stringify({ t: "hello", profile: big }))).not.toBeNull();
+    expect(parseClientMessage(JSON.stringify({ t: "chat", blob: big }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ t: "profile", profile: "A".repeat(13000) }))).toBeNull();
   });
 });
 

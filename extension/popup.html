@@ -11,8 +11,17 @@
 <header><span class="brand">Backrow</span><span class="caret" aria-hidden="true"></span></header>
 <main id="view" aria-live="polite"></main>
 <section class="you">
-  <label class="label" for="name">Your name</label>
+  <span class="label">Your profile</span>
+  <div class="photo-row">
+    <span id="avatar" class="avatar"></span>
+    <button id="photo" class="btn ghost small" type="button">Upload photo</button>
+    <button id="removePhoto" class="btn ghost small" type="button" hidden>Remove</button>
+    <input id="photoFile" type="file" accept="image/*" hidden>
+  </div>
+  <p id="photoError" class="error" hidden></p>
+  <label class="label" for="name">Display name</label>
   <input id="name" class="field" maxlength="24" autocomplete="off">
+  <span class="label">Color</span>
   <div id="swatches" class="swatches" role="group" aria-label="Your color"></div>
 </section>
 <footer><a id="home" target="_blank" rel="noopener">Upload your own video</a><a href="https://github.com/neelsatyavolu/backrow" target="_blank" rel="noopener">Source</a></footer>

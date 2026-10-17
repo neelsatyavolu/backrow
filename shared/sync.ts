@@ -39,6 +39,13 @@ export const SYNC = {
   echoTolerance: 0.9,
   /** Drift below this is ignored. */
   deadband: 0.25,
+  /**
+   * Same, for players that can only seek (Netflix): every seek there rebuffers
+   * briefly, so chasing small drift causes a constant stutter.
+   */
+  seekOnlyDeadband: 1.2,
+  /** Minimum gap between drift-correcting seeks, so a slow player never loops. */
+  seekCooldownMs: 5000,
   /** Drift above this is fixed by seeking instead of a speed nudge. */
   seekThreshold: 2.5,
   /** Max speed change while nudging, as a fraction of the room rate. */
@@ -57,7 +64,7 @@ export type Correction =
 export function correction(localPosition: number, expected: number, roomRate: number, canNudge: boolean): Correction {
   const drift = localPosition - expected;
   const abs = Math.abs(drift);
-  if (abs < SYNC.deadband) return { kind: "none" };
+  if (abs < (canNudge ? SYNC.deadband : SYNC.seekOnlyDeadband)) return { kind: "none" };
   if (!canNudge || abs >= SYNC.seekThreshold) return { kind: "seek", position: expected };
   const strength = Math.min(1, abs / 1.5);
   const delta = SYNC.nudge * Math.max(0.35, strength);

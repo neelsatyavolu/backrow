@@ -1,0 +1,44 @@
+/*
+ * Makes room for the Backrow chat panel on streaming watch pages, so the video
+ * shrinks beside the panel instead of sitting under it. Injected through the
+ * manifest, so page Content Security Policies can't block it.
+ *
+ * html.backrow-watch  a party is active and this is a watch page
+ * html.backrow-open   the panel is expanded
+ * html.backrow-fs     something is fullscreen (the panel overlays there)
+ */
+/* An explicit width (not auto) at both ends, so the change can animate. */
+html.backrow-watch body {
+  width: 100% !important;
+  transition: width 250ms cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+html.backrow-watch.backrow-open:not(.backrow-fs) body {
+  width: calc(100% - 340px) !important;
+  min-width: 0 !important;
+}
+
+/*
+ * Netflix, Hulu and Peacock pin their players to the viewport with
+ * position: fixed. A transform on body makes body the box those fixed
+ * players size against, so they follow its width. Kept for the whole party
+ * (not only while open) so closing the panel animates back smoothly.
+ */
+html.backrow-watch:not([data-backrow-site="youtube"]) body {
+  transform: translateZ(0);
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+
+/* YouTube scrolls normally, but in (page-level) fullscreen it pins its player too. */
+html.backrow-watch[data-backrow-site="youtube"]:fullscreen body {
+  transform: translateZ(0);
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.backrow-watch body {
+    transition: none !important;
+  }
+}
