@@ -97,7 +97,9 @@
     },
     {
       "matches": [
-        "https://backrow.n3el.dev/p/*"
+        "https://backrow.n3el.dev/p/*",
+        "https://backrow.n3el.dev/watch/*",
+        "https://backrow.n3el.dev/host"
       ],
       "js": [
         "join-bridge.js"

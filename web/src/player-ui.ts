@@ -183,9 +183,12 @@ export class PlayerUI {
   }
 
   private flashLocked(): void {
-    this.setStatus("The host controls playback");
+    const LOCKED = "The host controls playback";
+    // Put back whatever was showing ("Click for sound", "Reconnecting…").
+    const previous = this.status.hidden || this.status.textContent === LOCKED ? null : this.status.textContent;
+    this.setStatus(LOCKED);
     setTimeout(() => {
-      if (this.status.textContent === "The host controls playback") this.setStatus(null);
+      if (this.status.textContent === LOCKED) this.setStatus(previous);
     }, 1600);
   }
 

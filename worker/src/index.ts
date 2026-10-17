@@ -2,7 +2,7 @@
 // Object, ICE servers for peer-to-peer video streams, and accounts.
 
 import { randomId } from "../../shared/crypto";
-import { isBlob, ROOM_ID_RE } from "../../shared/protocol";
+import { isBlob, LOG_LIMITS, ROOM_ID_RE } from "../../shared/protocol";
 import { handleAccount } from "./account";
 import type { Env } from "./env";
 
@@ -76,6 +76,28 @@ async function iceServers(env: Env): Promise<Response> {
   return Response.json({ iceServers: servers }, { headers: { ...CORS, "Cache-Control": "no-store" } });
 }
 
+/** Opt-in debug logs from the extension and watch page, written to Workers Logs. */
+async function remoteLog(request: Request, env: Env): Promise<Response> {
+  if (!(await env.CREATE_LIMITER.limit({ key: `log:${clientIp(request)}` })).success) return fail(429, "Slow down");
+  const body = await readJson(request, 96 * 1024);
+  const session = typeof body?.session === "string" ? body.session.slice(0, 16) : "";
+  const source = typeof body?.source === "string" ? body.source.slice(0, LOG_LIMITS.source) : "";
+  if (!body || !session || !Array.isArray(body.entries)) return fail(400, "Invalid log");
+  for (const raw of body.entries.slice(0, LOG_LIMITS.entries)) {
+    const e = raw as Record<string, unknown>;
+    if (typeof e?.msg !== "string") continue;
+    console.log(JSON.stringify({
+      backrowLog: true,
+      session,
+      source,
+      t: typeof e.t === "number" ? new Date(e.t).toISOString() : null,
+      msg: e.msg.slice(0, LOG_LIMITS.msg),
+      data: typeof e.data === "string" ? e.data.slice(0, LOG_LIMITS.data) : undefined,
+    }));
+  }
+  return json({ ok: true });
+}
+
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const parts = url.pathname.split("/").filter(Boolean);
@@ -95,6 +117,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     }
     if (parts[1] === "account" && parts.length <= 3) return handleAccount(request, env, parts[2] ?? "", json);
     if (parts[1] === "ice" && parts.length === 2 && method === "GET") return iceServers(env);
+    if (parts[1] === "log" && parts.length === 2 && method === "POST") return remoteLog(request, env);
     return fail(404, "Not found");
   }
 

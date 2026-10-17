@@ -6,6 +6,7 @@
 import { importKey, newKeyText, openJson, sealJson } from "../../shared/crypto";
 import { PartyClient, type PartyEvent } from "../../shared/party-client";
 import { parseVideo, type Profile } from "../../shared/payload";
+import { remoteLog, type RemoteLog } from "../../shared/remote-log";
 import type { LocalVideo } from "../../shared/services";
 import { expectedPosition } from "../../shared/sync";
 import { SyncController, type PlayerAdapter, type PlayerEvent } from "../../shared/sync-controller";
@@ -22,6 +23,19 @@ const gate = document.getElementById("gate")!;
 const gateCard = document.getElementById("gateCard")!;
 const side = document.getElementById("side")!;
 const badge = document.getElementById("badge")!;
+
+// "Send debug logs" in the extension's settings, passed on by its page script.
+let remote: RemoteLog | null = null;
+const debug: RemoteLog = (msg, data) => remote?.(msg, data);
+const enableLog = () => {
+  remote ??= remoteLog(location.origin, `web:${location.pathname.split("/")[1] || "home"}`);
+  remote("log on", { ua: navigator.userAgent });
+};
+if (document.documentElement.dataset.backrowRemoteLog === "1") enableLog();
+document.addEventListener("backrow:remote-log", enableLog);
+
+/** Summary of the ICE servers, without credentials. */
+const iceKinds = (ice: RTCIceServer[]) => ice.flatMap((s) => [s.urls].flat().map((u) => u.split(":")[0]));
 
 interface Party {
   roomId: string;
@@ -138,6 +152,7 @@ async function startHost(party: Party, profile: Profile, hostKey: string): Promi
   let host: StreamHost | null = null;
   const panel = makePanel(client, party, profile, () => host?.closeAll());
   const sync = new SyncController(localAdapter, {
+    debug,
     serverNow: () => client.serverNow(),
     roomState: () => client.room?.state ?? null,
     canControl: () => client.canControl,
@@ -158,9 +173,10 @@ async function startHost(party: Party, profile: Profile, hostKey: string): Promi
   new PlayerUI(screen, video, stage, source);
 
   const ice = await loadIceServers();
+  debug("host ready", { ice: iceKinds(ice) });
   const ensureStream = (): StreamHost => {
     stream ??= capture();
-    host ??= new StreamHost(client, stream, ice);
+    host ??= new StreamHost(client, stream, ice, debug);
     return host;
   };
   const updateBadge = () => {
@@ -310,19 +326,29 @@ async function startViewer(party: Party, profile: Profile): Promise<void> {
       video.muted = true;
       autoMuted = true;
       ui.setStatus("Click for sound");
-      return video.play().catch(() => ui.setStatus("Click to start the video"));
+      debug("autoplay blocked, playing muted");
+      return video.play().catch((err: unknown) => {
+        debug("muted play failed", { err: String(err) });
+        ui.setStatus("Click to start the video");
+      });
     });
 
   const ice = await loadIceServers();
+  debug("viewer ready", { ice: iceKinds(ice) });
   const viewer = new StreamViewer(client, ice, (stream) => {
     video.srcObject = stream;
+    debug("stream", { on: !!stream });
     if (stream) {
-      ui.setStatus(null);
+      // Cleared by "playing", once frames actually arrive.
+      ui.setStatus("Starting the video");
       void startPlayback();
     } else {
       ui.setStatus("Reconnecting to the host");
     }
-  });
+  }, debug);
+  for (const type of ["playing", "waiting", "stalled", "resize"]) {
+    video.addEventListener(type, () => debug(`video ${type}`, { size: `${video.videoWidth}x${video.videoHeight}`, paused: video.paused, muted: video.muted }));
+  }
   video.addEventListener("playing", () => !autoMuted && ui.setStatus(null));
   video.addEventListener("volumechange", () => {
     if (autoMuted && !video.muted) {

@@ -1,10 +1,17 @@
-// Runs on the Backrow invite page (/p/<room>#key). Tells the page the extension
-// is installed, and hands the party to the background worker when asked.
+// Runs on Backrow's invite and watch pages. Tells the page the extension is
+// installed, passes on the "Send debug logs" setting, and hands the party to
+// the background worker when asked.
 
 import type { RuntimeIn } from "./messages";
 
 document.documentElement.dataset.backrowExtension = chrome.runtime.getManifest().version;
 document.dispatchEvent(new CustomEvent("backrow:extension-ready"));
+
+void chrome.storage.local.get("remoteLog").then(({ remoteLog }) => {
+  if (remoteLog !== true) return;
+  document.documentElement.dataset.backrowRemoteLog = "1";
+  document.dispatchEvent(new CustomEvent("backrow:remote-log"));
+});
 
 document.addEventListener("backrow:join", (e) => {
   const detail = (e as CustomEvent<unknown>).detail;

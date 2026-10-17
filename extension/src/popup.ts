@@ -17,6 +17,10 @@ const accountRow = document.getElementById("accountRow")!;
 const accountPage = document.getElementById("accountPage")!;
 (document.getElementById("home") as HTMLAnchorElement).href = `${SERVER}/host`;
 
+const remoteLogBox = document.getElementById("remoteLog") as HTMLInputElement;
+void chrome.storage.local.get("remoteLog").then(({ remoteLog }) => (remoteLogBox.checked = remoteLog === true));
+remoteLogBox.onchange = () => void chrome.storage.local.set({ remoteLog: remoteLogBox.checked });
+
 let tabId = -1;
 let profile: Profile = { name: "Guest", color: 0 };
 

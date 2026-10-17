@@ -115,3 +115,6 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
 }
 
 export const ROOM_ID_RE = /^[a-z2-9]{12}$/;
+
+/** Caps on one /api/log post (opt-in debug logs, see remote-log.ts). */
+export const LOG_LIMITS = { entries: 50, msg: 200, data: 1000, source: 40 } as const;

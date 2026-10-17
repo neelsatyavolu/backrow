@@ -5,6 +5,7 @@
 // the media itself is encrypted between browsers by WebRTC (DTLS-SRTP).
 
 import type { PartyClient } from "../../shared/party-client";
+import type { RemoteLog } from "../../shared/remote-log";
 
 type Signal =
   | { kind: "want" }
@@ -59,6 +60,43 @@ function gathered(pc: RTCPeerConnection, timeoutMs = 2500): Promise<void> {
   });
 }
 
+const STATS_MS = 10_000;
+
+/**
+ * Logs a connection's state changes, which route it picked (host = direct,
+ * srflx = through NAT, relay = TURN) and, while it is up, how much video moves.
+ */
+function watchConnection(pc: RTCPeerConnection, peer: string, log: RemoteLog): void {
+  let timer: ReturnType<typeof setInterval> | null = null;
+  const stats = async () => {
+    const report = await pc.getStats().catch(() => null);
+    if (!report) return;
+    const all = [...report.values()] as Array<Record<string, unknown>>;
+    const pair = all.find((r) => r.type === "candidate-pair" && r.nominated && r.state === "succeeded");
+    const kind = (id: unknown) => all.find((r) => r.id === id)?.candidateType;
+    const video = all.find((r) => (r.type === "inbound-rtp" || r.type === "outbound-rtp") && r.kind === "video");
+    log("rtc stats", {
+      peer,
+      route: pair ? `${kind(pair.localCandidateId)}->${kind(pair.remoteCandidateId)}` : null,
+      rttMs: typeof pair?.currentRoundTripTime === "number" ? Math.round(pair.currentRoundTripTime * 1000) : null,
+      frames: video?.framesDecoded ?? video?.framesEncoded ?? null,
+      bytes: video?.bytesReceived ?? video?.bytesSent ?? null,
+      size: video ? `${video.frameWidth ?? "?"}x${video.frameHeight ?? "?"}` : null,
+    });
+  };
+  pc.addEventListener("iceconnectionstatechange", () => log("ice state", { peer, state: pc.iceConnectionState }));
+  pc.addEventListener("connectionstatechange", () => {
+    log("rtc state", { peer, state: pc.connectionState });
+    if (pc.connectionState === "connected") {
+      void stats();
+      timer ??= setInterval(() => void stats(), STATS_MS);
+    } else if (timer && (pc.connectionState === "failed" || pc.connectionState === "closed")) {
+      clearInterval(timer);
+      timer = null;
+    }
+  });
+}
+
 function preferCodecs(transceiver: RTCRtpTransceiver): void {
   const caps = RTCRtpSender.getCapabilities?.("video");
   if (!caps || !transceiver.setCodecPreferences) return;
@@ -87,6 +125,7 @@ export class StreamHost {
     private readonly client: PartyClient,
     private readonly stream: MediaStream,
     private readonly ice: RTCIceServer[],
+    private readonly log: RemoteLog = () => undefined,
   ) {
     for (const track of stream.getVideoTracks()) track.contentHint = "motion";
   }
@@ -112,6 +151,8 @@ export class StreamHost {
     const pc = new RTCPeerConnection({ iceServers: this.ice });
     this.peers.set(to, pc);
     this.started.set(to, Date.now());
+    this.log("offer", { to, tracks: this.stream.getTracks().map((t) => `${t.kind}:${t.readyState}`) });
+    watchConnection(pc, to, this.log);
     for (const track of this.stream.getTracks()) {
       const transceiver = pc.addTransceiver(track, { direction: "sendonly", streams: [this.stream] });
       if (track.kind === "video") preferCodecs(transceiver);
@@ -149,6 +190,7 @@ export class StreamViewer {
     private readonly client: PartyClient,
     private readonly ice: RTCIceServer[],
     private readonly onStream: (stream: MediaStream | null) => void,
+    private readonly log: RemoteLog = () => undefined,
   ) {}
 
   get connected(): boolean {
@@ -161,6 +203,7 @@ export class StreamViewer {
     if (state === "connected" || state === "connecting" || state === "new") return;
     if (Date.now() - this.askedAt < SETUP_GRACE_MS) return;
     this.askedAt = Date.now();
+    this.log("want", { host: hostId, state: state ?? null });
     void this.client.sendSignal(hostId, { kind: "want" });
   }
 
@@ -170,8 +213,10 @@ export class StreamViewer {
     this.close();
     const pc = new RTCPeerConnection({ iceServers: this.ice });
     this.pc = pc;
+    watchConnection(pc, from, this.log);
     pc.addEventListener("track", (e) => {
       const receiver = e.receiver as RTCRtpReceiver & { jitterBufferTarget?: number | null };
+      this.log("track", { kind: e.track.kind, muted: e.track.muted });
       if ("jitterBufferTarget" in receiver) receiver.jitterBufferTarget = JITTER_TARGET_MS;
       this.onStream(e.streams[0] ?? new MediaStream([e.track]));
     });

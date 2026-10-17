@@ -52,7 +52,7 @@ const manifest = {
     { matches: ["https://www.hulu.com/*"], js: ["hulu-main.js"], run_at: "document_start", world: "MAIN" },
     { matches: sites, js: ["fullscreen-main.js"], run_at: "document_start", world: "MAIN" },
     { matches: ["https://www.peacocktv.com/*"], js: ["peacock-main.js"], run_at: "document_start", world: "MAIN" },
-    { matches: [`${SERVER}/p/*`], js: ["join-bridge.js"], run_at: "document_start" },
+    { matches: [`${SERVER}/p/*`, `${SERVER}/watch/*`, `${SERVER}/host`], js: ["join-bridge.js"], run_at: "document_start" },
   ],
   minimum_chrome_version: "116",
 };

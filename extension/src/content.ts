@@ -4,11 +4,12 @@
 
 import type { PartyEvent, RoomSnapshot } from "../../shared/party-client";
 import type { Profile } from "../../shared/payload";
+import { remoteLog, type RemoteLog } from "../../shared/remote-log";
 import { applyEvent } from "../../shared/room-mirror";
 import { parseVideoUrl, sameVideo, serviceForHost, SERVICE_LABELS, videoKey, type StreamingVideo, type VideoRef } from "../../shared/services";
 import { SyncController, type SyncLink } from "../../shared/sync-controller";
 import { ChatPanel } from "../../shared/ui/panel";
-import type { PortIn, PortOut, SessionInfo } from "./messages";
+import { SERVER, type PortIn, type PortOut, type SessionInfo } from "./messages";
 import { createAdapter } from "./player";
 
 const service = serviceForHost(location.hostname);
@@ -37,15 +38,19 @@ function send(msg: PortIn): void {
 
 const canControl = () => !!room && (room.control === "everyone" || room.host === room.you);
 
-let debugOn = false;
+let debugLog: RemoteLog | null = null;
 try {
-  debugOn = localStorage.getItem("backrow:debug") === "1";
+  if (localStorage.getItem("backrow:debug") === "1") debugLog = (msg, data) => console.debug("[backrow]", msg, JSON.stringify(data ?? ""));
 } catch {
   // Storage blocked; stay quiet.
 }
+// "Send debug logs" in the extension's settings also sends the trace to Backrow.
+void chrome.storage.local.get("remoteLog").then(({ remoteLog: on }) => {
+  if (on === true) debugLog = remoteLog(SERVER, `ext:${service ?? location.hostname}`);
+});
 
 const link: SyncLink = {
-  debug: debugOn ? (msg, data) => console.debug("[backrow]", msg, JSON.stringify(data ?? "")) : undefined,
+  debug: (msg, data) => debugLog?.(msg, data),
   serverNow: () => Date.now() + offset,
   roomState: () => room?.state ?? null,
   canControl,
