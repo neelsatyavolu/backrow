@@ -121,7 +121,12 @@ function makePanel(client: PartyClient, party: Party, profile: Profile, onLeave:
       location.assign("/");
     },
     serverNow: () => client.serverNow(),
-  }, { docked: true, profile });
+  }, {
+    docked: true,
+    profile,
+    // Hiding the chat gives its column back to the video, animated in CSS.
+    onOpenChange: (open) => stage.classList.toggle("chat-hidden", !open),
+  });
 }
 
 // ---------------- Host ----------------

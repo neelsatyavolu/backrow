@@ -102,12 +102,10 @@ export class ChatPanel {
     gear.title = "Your name and color";
     gear.onclick = () => this.settings.classList.toggle("open");
     head.append(brand, this.statusEl, h("span", "spacer"), invite, gear);
-    if (!this.opts.docked) {
-      const hide = h("button", "icon-btn", "Hide");
-      hide.title = "Hide the party panel";
-      hide.onclick = () => this.setOpen(false);
-      head.append(hide);
-    }
+    const hide = h("button", "icon-btn", "Hide");
+    hide.title = "Hide the chat";
+    hide.onclick = () => this.setOpen(false);
+    head.append(hide);
 
     this.people = h("div", "people");
     this.settings = this.buildSettings();
@@ -258,6 +256,8 @@ export class ChatPanel {
     this.panel.classList.toggle("hidden", !open);
     this.tab.classList.toggle("show", !open);
     this.floats.classList.toggle("full", !open || this.opts.docked);
+    // Docked (web player): reactions float over the video, which widens when the chat hides.
+    if (this.opts.docked) this.floats.style.right = open ? "var(--panel-w)" : "0";
     this.opts.onOpenChange?.(open);
     if (open) {
       this.unread = 0;

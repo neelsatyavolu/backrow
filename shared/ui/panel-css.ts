@@ -23,7 +23,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline:2px 
   border-left:1px solid var(--border); font:14px/1.45 var(--sans);
   -webkit-font-smoothing:antialiased; transition:transform 250ms var(--ease);
 }
-.panel.docked { position:relative; height:100%; width:100%; border-left:1px solid var(--border); }
+.panel.docked { position:relative; height:100%; width:var(--panel-w); border-left:1px solid var(--border); }
 .panel.hidden { transform:translateX(100%); }
 
 .head { display:flex; align-items:center; gap:10px; padding:14px 14px 12px; border-bottom:1px solid var(--border); }
