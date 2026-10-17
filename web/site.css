@@ -204,7 +204,7 @@ code{font:13px var(--mono);color:var(--fg);background:var(--surface);padding:1px
 .pc-big{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:72px;height:72px;border-radius:50%;background:rgba(14,14,13,.6);border:1px solid rgba(242,240,234,.22);transition:opacity 250ms var(--ease),transform 150ms var(--ease)}
 .pc-big:hover{transform:translate(-50%,-50%) scale(1.05)}
 .pc-big svg{width:30px;height:30px;margin-left:3px}
-.pc-status{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font:13px var(--mono);letter-spacing:.04em;background:rgba(14,14,13,.85);border:1px solid rgba(242,240,234,.12);padding:10px 14px;white-space:nowrap}
+.pc-status{pointer-events:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font:13px var(--mono);letter-spacing:.04em;background:rgba(14,14,13,.85);border:1px solid rgba(242,240,234,.12);padding:10px 14px;white-space:nowrap}
 .pc.locked .pc-track{cursor:not-allowed}
 .pc-track:focus:not(:focus-visible){outline:none}
 .live-badge{position:absolute;left:16px;top:14px;z-index:3;font:12px var(--mono);letter-spacing:.06em;text-transform:uppercase;background:rgba(14,14,13,.7);padding:6px 10px;display:flex;gap:8px;align-items:center;color:#F2F0EA}

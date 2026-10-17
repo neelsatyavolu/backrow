@@ -292,21 +292,44 @@ async function startViewer(party: Party, profile: Profile): Promise<void> {
       if (!st) return;
       void client.sendState({ playing: st.playing, position: s, rate: st.rate, duration: st.duration });
     },
+    resume: () => {
+      if (!video.srcObject || !(video.paused || autoMuted)) return false;
+      autoMuted = false;
+      video.muted = false;
+      void video.play().then(() => ui.setStatus(null), () => ui.setStatus("Click to start the video"));
+      return true;
+    },
   });
   ui.setStatus("Connecting to the host");
+
+  // The stream arrives seconds after the Join click, so browsers may refuse to
+  // autoplay it with sound. Fall back to muted playback and ask for a click.
+  let autoMuted = false;
+  const startPlayback = () =>
+    video.play().catch(() => {
+      video.muted = true;
+      autoMuted = true;
+      ui.setStatus("Click for sound");
+      return video.play().catch(() => ui.setStatus("Click to start the video"));
+    });
 
   const ice = await loadIceServers();
   const viewer = new StreamViewer(client, ice, (stream) => {
     video.srcObject = stream;
     if (stream) {
-      void video.play().catch(() => ui.setStatus("Click to start the video"));
       ui.setStatus(null);
+      void startPlayback();
     } else {
       ui.setStatus("Reconnecting to the host");
     }
   });
-  video.addEventListener("click", () => void video.play().catch(() => undefined));
-  video.addEventListener("playing", () => ui.setStatus(null));
+  video.addEventListener("playing", () => !autoMuted && ui.setStatus(null));
+  video.addEventListener("volumechange", () => {
+    if (autoMuted && !video.muted) {
+      autoMuted = false;
+      ui.setStatus(null);
+    }
+  });
 
   const ask = () => {
     const room = client.room;

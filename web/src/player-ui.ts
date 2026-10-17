@@ -11,6 +11,8 @@ export interface PlayerSource {
   canControl(): boolean;
   toggle(): void;
   seek(seconds: number): void;
+  /** Starts local playback the browser held back (autoplay rules); true if it did. */
+  resume?(): boolean;
 }
 
 const IDLE_MS = 2600;
@@ -166,6 +168,8 @@ export class PlayerUI {
   }
 
   private toggle(): void {
+    // A click that unblocks the local video shouldn't also pause the party.
+    if (this.source.resume?.()) return this.wake();
     if (!this.source.canControl()) return this.flashLocked();
     this.source.toggle();
     this.wake();
