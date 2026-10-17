@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseClientMessage } from "../shared/protocol";
 import { fromBase64Url, importKey, newKeyText, openJson, randomId, sealJson, toBase64Url } from "../shared/crypto";
-import { CHUNK_PLAIN, CHUNK_SEALED, chunkCount, importMediaKey, openChunk, partCount, sealChunk, sealedSize, sealedSpan } from "../shared/media-crypto";
 
 describe("room encryption", () => {
   it("round-trips JSON with the right key", async () => {
@@ -43,24 +42,3 @@ describe("protocol limits", () => {
   });
 });
 
-describe("media chunks", () => {
-  it("computes sizes and spans", () => {
-    expect(chunkCount(1)).toBe(1);
-    expect(chunkCount(CHUNK_PLAIN)).toBe(1);
-    expect(chunkCount(CHUNK_PLAIN + 1)).toBe(2);
-    expect(sealedSize(CHUNK_PLAIN + 1)).toBe(CHUNK_PLAIN + 1 + 32);
-    expect(partCount(CHUNK_PLAIN * 8)).toBe(1);
-    expect(partCount(CHUNK_PLAIN * 8 + 1)).toBe(2);
-    const size = CHUNK_PLAIN * 2 + 10;
-    expect(sealedSpan(0, 0, size)).toEqual([0, CHUNK_SEALED - 1]);
-    expect(sealedSpan(2, 2, size)).toEqual([CHUNK_SEALED * 2, sealedSize(size) - 1]);
-  });
-
-  it("seals and opens chunks bound to their index", async () => {
-    const key = await importMediaKey(crypto.getRandomValues(new Uint8Array(32)));
-    const plain = crypto.getRandomValues(new Uint8Array(1000));
-    const sealed = await sealChunk(key, 5, plain);
-    expect(await openChunk(key, 5, sealed)).toEqual(plain);
-    await expect(openChunk(key, 6, sealed)).rejects.toThrow();
-  });
-});

@@ -1,5 +1,5 @@
 // One Durable Object per party. Uses WebSocket hibernation so an idle party
-// costs nothing, and deletes itself (and any uploaded video) once empty.
+// costs nothing, and deletes itself once empty.
 
 import { DurableObject } from "cloudflare:workers";
 import { randomId } from "../../shared/crypto";
@@ -36,7 +36,11 @@ export class Room extends DurableObject<Env> {
     for (const { to, msg } of out) {
       const text = JSON.stringify(msg);
       const targets =
-        to === "self" ? [self] : this.conns(to === "others" ? self : undefined).filter((c) => c.conn.profile).map((c) => c.ws);
+        to === "self"
+          ? [self]
+          : typeof to === "object"
+            ? this.conns().filter((c) => c.conn.id === to.member).map((c) => c.ws)
+            : this.conns(to === "others" ? self : undefined).filter((c) => c.conn.profile).map((c) => c.ws);
       for (const ws of targets) {
         try {
           ws.send(text);
@@ -52,8 +56,8 @@ export class Room extends DurableObject<Env> {
 
     if (url.pathname === "/create" && request.method === "POST") {
       if (await this.load()) return Response.json({ error: "exists" }, { status: 409 });
-      const body = (await request.json()) as { video: string; mediaId: string | null };
-      const room = newRoom(body.video, body.mediaId, Date.now());
+      const body = (await request.json()) as { video: string };
+      const room = newRoom(body.video, Date.now());
       await this.save(room);
       await this.ctx.storage.setAlarm(Date.now() + EMPTY_TTL_MS);
       return Response.json({ hostKey: room.hostKey });
@@ -64,7 +68,7 @@ export class Room extends DurableObject<Env> {
 
     if (url.pathname === "/info") {
       const members = this.conns().filter((c) => c.conn.profile).length;
-      return Response.json({ video: room.video, members, upload: room.mediaId !== null });
+      return Response.json({ video: room.video, members });
     }
 
     if (url.pathname === "/ws") {
@@ -131,11 +135,6 @@ export class Room extends DurableObject<Env> {
     if (this.conns().length > 0) {
       await this.ctx.storage.setAlarm(Date.now() + EMPTY_TTL_MS);
       return;
-    }
-    const room = await this.load();
-    if (room?.mediaId) {
-      await this.env.MEDIA.delete(`media/${room.mediaId}`);
-      await this.env.QUOTA.getByName("global").release(room.mediaId);
     }
     await this.ctx.storage.deleteAll();
     this.room = null;

@@ -54,7 +54,8 @@ export type PartyEvent =
   | { type: "typing"; member: Member; on: boolean }
   | { type: "control"; mode: ControlMode }
   | { type: "host"; id: string | null }
-  | { type: "error"; code: string; message: string };
+  | { type: "error"; code: string; message: string }
+  | { type: "signal"; from: string; data: unknown };
 
 export interface PartyClientOptions {
   server: string;
@@ -140,6 +141,11 @@ export class PartyClient {
   async setProfile(profile: Profile): Promise<void> {
     this.profile = profile;
     this.send({ t: "profile", profile: await sealJson(await this.key, profile) });
+  }
+
+  /** Sends WebRTC setup to one member, encrypted so the server can't tamper with it. */
+  async sendSignal(to: string, data: unknown): Promise<void> {
+    this.send({ t: "signal", to, blob: await sealJson(await this.key, data) });
   }
 
   setControl(mode: ControlMode): void {
@@ -281,6 +287,11 @@ export class PartyClient {
     if (!snap) return;
 
     switch (msg.t) {
+      case "signal": {
+        const data = await openJson(key, msg.blob);
+        if (data !== null) this.emit({ type: "signal", from: msg.from, data });
+        break;
+      }
       case "join": {
         const member = await this.decodeMember(msg.member);
         this.snapshot = { ...snap, members: [...snap.members.filter((m) => m.id !== member.id), member] };

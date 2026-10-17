@@ -8,25 +8,20 @@ export interface StreamingVideo {
   title?: string;
 }
 
-export interface UploadedVideo {
-  service: "upload";
-  /** R2 object id, also known to the server. */
-  id: string;
-  /** base64url AES key for the media chunks. Only ever travels encrypted. */
-  mediaKey: string;
+/** A file streamed live from the host's computer; nothing is uploaded. */
+export interface LocalVideo {
+  service: "local";
   name: string;
-  size: number;
-  mime: string;
 }
 
-export type VideoRef = StreamingVideo | UploadedVideo;
+export type VideoRef = StreamingVideo | LocalVideo;
 
 export const SERVICE_LABELS: Record<VideoRef["service"], string> = {
   netflix: "Netflix",
   hulu: "Hulu",
   peacock: "Peacock",
   youtube: "YouTube",
-  upload: "Uploaded video",
+  local: "Streamed from the host",
 };
 
 const HOSTS: Record<string, StreamingService> = {
@@ -79,6 +74,11 @@ export function parseVideoUrl(input: string): StreamingVideo | null {
   return null;
 }
 
+/** Stable identity of a video: the site's id, or the file name for a local stream. */
+export function videoKey(v: VideoRef): string {
+  return v.service === "local" ? `local:${v.name}` : `${v.service}:${v.id}`;
+}
+
 export function sameVideo(a: VideoRef | null | undefined, b: VideoRef | null | undefined): boolean {
-  return !!a && !!b && a.service === b.service && a.id === b.id;
+  return !!a && !!b && videoKey(a) === videoKey(b);
 }

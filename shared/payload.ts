@@ -87,14 +87,9 @@ export function parseReaction(value: unknown): Reaction | null {
 export function parseVideo(value: unknown): VideoRef | null {
   const o = obj(value);
   if (!o) return null;
-  if (o.service === "upload") {
-    const { id, mediaKey, size } = o;
+  if (o.service === "local") {
     const name = cleanText(o.name, 200);
-    const mime = typeof o.mime === "string" && /^video\/[a-z0-9.+-]{1,40}$/i.test(o.mime) ? o.mime : null;
-    if (typeof id !== "string" || !/^[a-z2-9]{16}$/.test(id)) return null;
-    if (typeof mediaKey !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(mediaKey)) return null;
-    if (!finite(size) || size <= 0 || !name || !mime) return null;
-    return { service: "upload", id, mediaKey, name, size, mime };
+    return name ? { service: "local", name } : null;
   }
   if (typeof o.url !== "string") return null;
   const parsed = parseVideoUrl(o.url);

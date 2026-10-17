@@ -9,7 +9,6 @@ export interface RoomData {
   createdAt: number;
   video: string;
   hostKey: string;
-  mediaId: string | null;
   control: ControlMode;
   host: string | null;
   state: { blob: string; by: string; at: number } | null;
@@ -24,7 +23,8 @@ export interface Conn {
   ownsHostKey: boolean;
 }
 
-export type Target = "self" | "others" | "all";
+/** Who receives a message: a group, or one member by id. */
+export type Target = "self" | "others" | "all" | { member: string };
 export interface Out {
   to: Target;
   msg: ServerMessage;
@@ -36,12 +36,11 @@ export interface Result {
   out: Out[];
 }
 
-export function newRoom(video: string, mediaId: string | null, now: number): RoomData {
+export function newRoom(video: string, now: number): RoomData {
   return {
     createdAt: now,
     video,
     hostKey: randomId(24),
-    mediaId,
     control: "everyone",
     host: null,
     state: null,
@@ -139,6 +138,10 @@ export function handle(room: RoomData, conn: Conn, msg: ClientMessage, others: C
       return same([{ to: "self", msg: { t: "pong", c: msg.c, s: now } }]);
     case "resync":
       return same([{ to: "self", msg: welcome(room, conn, [...others, conn], now) }]);
+    case "signal": {
+      if (msg.to === conn.id || !others.some((m) => m.id === msg.to && m.profile)) return same([]);
+      return same([{ to: { member: msg.to }, msg: { t: "signal", from: conn.id, blob: msg.blob } }]);
+    }
   }
 }
 

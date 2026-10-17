@@ -11,7 +11,7 @@ const photoBtn = document.getElementById("photo") as HTMLButtonElement;
 const removeBtn = document.getElementById("removePhoto") as HTMLButtonElement;
 const photoFile = document.getElementById("photoFile") as HTMLInputElement;
 const photoError = document.getElementById("photoError")!;
-(document.getElementById("home") as HTMLAnchorElement).href = SERVER;
+(document.getElementById("home") as HTMLAnchorElement).href = `${SERVER}/host`;
 
 let tabId = -1;
 let profile: Profile = { name: "Guest", color: 0 };
@@ -107,7 +107,7 @@ function render(status: PopupStatus): void {
   if (!status.supported) {
     view.append(
       el("p", "title", "Open a video to start a party"),
-      el("p", "meta", "Backrow works on Netflix, Hulu, Peacock and YouTube. To watch your own file, upload it on the Backrow site."),
+      el("p", "meta", "Backrow works on Netflix, Hulu, Peacock and YouTube. To watch your own file, stream it from the Backrow site."),
     );
     return;
   }

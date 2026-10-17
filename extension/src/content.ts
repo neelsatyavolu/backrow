@@ -5,7 +5,7 @@
 import type { PartyEvent, RoomSnapshot } from "../../shared/party-client";
 import type { Profile } from "../../shared/payload";
 import { applyEvent } from "../../shared/room-mirror";
-import { parseVideoUrl, sameVideo, serviceForHost, SERVICE_LABELS, type StreamingVideo, type VideoRef } from "../../shared/services";
+import { parseVideoUrl, sameVideo, serviceForHost, SERVICE_LABELS, videoKey, type StreamingVideo, type VideoRef } from "../../shared/services";
 import { SyncController, type SyncLink } from "../../shared/sync-controller";
 import { ChatPanel } from "../../shared/ui/panel";
 import type { PortIn, PortOut, SessionInfo } from "./messages";
@@ -165,7 +165,7 @@ function follow(video: VideoRef | null): boolean {
   const note = `The party is watching on ${label}.`;
   if (movedNotice !== note) {
     movedNotice = note;
-    panel?.notice([note, video.service === "upload" ? " Open the invite link to join it." : ` Open ${label} to follow along.`]);
+    panel?.notice([note, video.service === "local" ? " Open the invite link to join it." : ` Open ${label} to follow along.`]);
   }
   return false;
 }
@@ -177,7 +177,7 @@ function onSnapshot(): void {
 }
 
 function onEvent(event: PartyEvent): void {
-  link.debug?.(`event ${event.type}`, event.type === "state" ? event.state : event.type === "snapshot" ? { video: event.snapshot.video?.id, state: event.snapshot.state } : undefined);
+  link.debug?.(`event ${event.type}`, event.type === "state" ? event.state : event.type === "snapshot" ? { video: event.snapshot.video && videoKey(event.snapshot.video), state: event.snapshot.state } : undefined);
   room = applyEvent(room, event);
   panel?.handle(event);
   if (event.type === "snapshot") onSnapshot();

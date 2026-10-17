@@ -8,6 +8,8 @@ export const LIMITS = {
   blob: 6000,
   /** Profiles can carry a small photo, so they get more room than other blobs. */
   profile: 12000,
+  /** WebRTC offers/answers carry a full SDP. */
+  signal: 12000,
   frame: 16000,
   history: 150,
   members: 50,
@@ -35,7 +37,9 @@ export type ClientMessage =
   | { t: "typing"; on: boolean }
   | { t: "control"; mode: ControlMode }
   | { t: "ping"; c: number }
-  | { t: "resync" };
+  | { t: "resync" }
+  /** Encrypted WebRTC setup for one member; the server only routes it. */
+  | { t: "signal"; to: string; blob: string };
 
 export type ServerMessage =
   | {
@@ -60,6 +64,7 @@ export type ServerMessage =
   | { t: "control"; mode: ControlMode }
   | { t: "host"; id: string | null }
   | { t: "pong"; c: number; s: number }
+  | { t: "signal"; from: string; blob: string }
   | { t: "error"; code: string; message: string };
 
 const BLOB_RE = /^[A-Za-z0-9_-]+$/;
@@ -100,10 +105,13 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
       return typeof m.c === "number" && Number.isFinite(m.c) ? { t: "ping", c: m.c } : null;
     case "resync":
       return { t: "resync" };
+    case "signal":
+      return typeof m.to === "string" && /^[a-z2-9]{8}$/.test(m.to) && isBlob(m.blob, LIMITS.signal)
+        ? { t: "signal", to: m.to, blob: m.blob }
+        : null;
     default:
       return null;
   }
 }
 
 export const ROOM_ID_RE = /^[a-z2-9]{12}$/;
-export const MEDIA_ID_RE = /^[a-z2-9]{16}$/;

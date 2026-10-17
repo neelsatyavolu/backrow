@@ -10,13 +10,13 @@ function join(room: ReturnType<typeof newRoom>, c: Conn, others: Conn[], hostKey
 
 describe("room logic", () => {
   it("requires hello before anything else", () => {
-    const room = newRoom(blob, null, 0);
+    const room = newRoom(blob, 0);
     const r = handle(room, conn("a"), { t: "chat", blob }, [], 1);
     expect(r.out[0]?.msg).toMatchObject({ t: "error", code: "hello-first" });
   });
 
   it("makes the host-key holder host and welcomes them", () => {
-    const room = newRoom(blob, null, 0);
+    const room = newRoom(blob, 0);
     const r = join(room, conn("a"), [], room.hostKey);
     expect(r.room.host).toBe("a");
     expect(r.out[0]?.msg).toMatchObject({ t: "welcome", you: "a", host: "a", video: blob });
@@ -24,7 +24,7 @@ describe("room logic", () => {
   });
 
   it("enforces host-only control", () => {
-    let room = newRoom(blob, null, 0);
+    let room = newRoom(blob, 0);
     const host = join(room, conn("h"), [], room.hostKey);
     room = host.room;
     const guest = join(room, conn("g", 2), [host.conn]);
@@ -40,7 +40,7 @@ describe("room logic", () => {
   });
 
   it("keeps chat history bounded and broadcasts to all", () => {
-    let room = newRoom(blob, null, 0);
+    let room = newRoom(blob, 0);
     const a = join(room, conn("a"), []);
     room = a.room;
     for (let i = 0; i < 200; i++) room = handle(room, a.conn, { t: "chat", blob }, [], i).room;
@@ -49,7 +49,7 @@ describe("room logic", () => {
   });
 
   it("hands host to the earliest member when the host leaves", () => {
-    let room = newRoom(blob, null, 0);
+    let room = newRoom(blob, 0);
     const h = join(room, conn("h", 1), [], room.hostKey);
     room = h.room;
     const g1 = join(room, conn("g1", 2), [h.conn]);
@@ -59,6 +59,16 @@ describe("room logic", () => {
     // The original host reclaims it on rejoin.
     const back = join(left.room, conn("h2", 9), [g1.conn, g2.conn], room.hostKey);
     expect(back.room.host).toBe("h2");
+  });
+
+  it("routes signals to one member only", () => {
+    let room = newRoom(blob, 0);
+    const a = join(room, conn("aaaaaaaa"), [], room.hostKey);
+    room = a.room;
+    const b = join(room, conn("bbbbbbbb", 2), [a.conn]);
+    const r = handle(b.room, b.conn, { t: "signal", to: "aaaaaaaa", blob }, [a.conn], 5);
+    expect(r.out).toEqual([{ to: { member: "aaaaaaaa" }, msg: { t: "signal", from: "bbbbbbbb", blob } }]);
+    expect(handle(b.room, b.conn, { t: "signal", to: "zzzzzzzz", blob }, [a.conn], 5).out).toEqual([]);
   });
 
   it("rate limits bursts", () => {

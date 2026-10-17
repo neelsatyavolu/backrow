@@ -67,7 +67,7 @@ async function run(): Promise<void> {
   const room = (await res.json()) as { video: string; members: number };
   const video = parseVideo(await openJson(await importKey(party.keyText), room.video));
   if (!video) return fail("This link doesn't open", "The key in the link is wrong or was cut off.");
-  if (video.service === "upload") {
+  if (video.service === "local") {
     location.replace(`/watch/${party.roomId}#${party.keyText}`);
     return;
   }

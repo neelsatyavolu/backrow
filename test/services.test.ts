@@ -58,8 +58,7 @@ describe("payload validation", () => {
     expect(parseVideo(v)).toEqual(v);
     expect(parseVideo({ ...v, id: "2" })).toBeNull();
     expect(parseVideo({ ...v, url: "https://evil.com/watch/1" })).toBeNull();
-    const up = { service: "upload", id: "abcdefghijkmnpqr", mediaKey: "a".repeat(43), name: "film.mp4", size: 10, mime: "video/mp4" };
-    expect(parseVideo(up)).toEqual(up);
-    expect(parseVideo({ ...up, mime: "text/html" })).toBeNull();
+    expect(parseVideo({ service: "local", name: "film.mp4" })).toEqual({ service: "local", name: "film.mp4" });
+    expect(parseVideo({ service: "local", name: "" })).toBeNull();
   });
 });

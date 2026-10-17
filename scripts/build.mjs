@@ -62,7 +62,7 @@ cpSync("extension/icons", "extension/dist/icons", { recursive: true });
 mkdirSync("worker/public", { recursive: true });
 await build({
   ...common,
-  entryPoints: { home: "web/src/home.ts", join: "web/src/join.ts", watch: "web/src/watch.ts", sw: "web/src/sw.ts" },
+  entryPoints: { home: "web/src/home.ts", join: "web/src/join.ts", watch: "web/src/watch.ts" },
   outdir: "worker/public",
   format: "esm",
 });
@@ -72,10 +72,7 @@ writeFileSync("worker/public/_headers", [
   "  X-Content-Type-Options: nosniff",
   "  Referrer-Policy: no-referrer",
   "  Permissions-Policy: camera=(), microphone=(), geolocation=()",
-  "  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
-  "/sw.js",
-  "  Service-Worker-Allowed: /",
-  "  Cache-Control: no-cache",
+  "  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; worker-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
   "",
 ].join("\n"));
 // Downloadable extension: a zip whose single folder is what "Load unpacked" wants.
