@@ -1,0 +1,17 @@
+# extension/dist is committed so people can clone and Load unpacked. This
+# rebuilds it from source and fails if the committed copy differs.
+name: extension-dist
+on: [push, pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: git diff --exit-code --stat -- extension/dist
+      - run: test -z "$(git status --porcelain -- extension/dist)"

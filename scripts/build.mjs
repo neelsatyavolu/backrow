@@ -4,15 +4,19 @@ import { build } from "esbuild";
 import { execFileSync } from "node:child_process";
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
-const SERVER = (process.env.BACKROW_SERVER ?? "https://backrow.n3el.dev").replace(/\/$/, "");
+// Only production builds go to extension/dist, which is committed so people can
+// clone and Load unpacked. Builds for any other server stay out of git.
+const DEFAULT_SERVER = "https://backrow.n3el.dev";
+const SERVER = (process.env.BACKROW_SERVER ?? DEFAULT_SERVER).replace(/\/$/, "");
+const OUT = SERVER === DEFAULT_SERVER ? "extension/dist" : "extension/dist-dev";
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const common = { bundle: true, target: "es2022", minify: true, sourcemap: false, logLevel: "warning", legalComments: "none" };
 
 // Extension
-rmSync("extension/dist", { recursive: true, force: true });
-mkdirSync("extension/dist/icons", { recursive: true });
+rmSync(OUT, { recursive: true, force: true });
+mkdirSync(`${OUT}/icons`, { recursive: true });
 const define = { __BACKROW_SERVER__: JSON.stringify(SERVER) };
-await build({ ...common, entryPoints: { background: "extension/src/background.ts" }, outdir: "extension/dist", format: "esm", define });
+await build({ ...common, entryPoints: { background: "extension/src/background.ts" }, outdir: OUT, format: "esm", define });
 // Scripts that run inside web pages must not leak top-level names: Netflix's
 // own minified globals (e.g. \`i\`) silently replaced ours when this was ESM.
 await build({
@@ -26,7 +30,7 @@ await build({
     "join-bridge": "extension/src/join-bridge.ts",
     popup: "extension/src/popup.ts",
   },
-  outdir: "extension/dist",
+  outdir: OUT,
   format: "iife",
   define,
 });
@@ -52,11 +56,11 @@ const manifest = {
   ],
   minimum_chrome_version: "116",
 };
-writeFileSync("extension/dist/manifest.json", JSON.stringify(manifest, null, 2));
-cpSync("extension/popup.html", "extension/dist/popup.html");
-cpSync("extension/popup.css", "extension/dist/popup.css");
-cpSync("extension/page.css", "extension/dist/page.css");
-cpSync("extension/icons", "extension/dist/icons", { recursive: true });
+writeFileSync(`${OUT}/manifest.json`, JSON.stringify(manifest, null, 2));
+cpSync("extension/popup.html", `${OUT}/popup.html`);
+cpSync("extension/popup.css", `${OUT}/popup.css`);
+cpSync("extension/page.css", `${OUT}/page.css`);
+cpSync("extension/icons", `${OUT}/icons`, { recursive: true });
 
 // Web pages served by the Worker
 mkdirSync("worker/public", { recursive: true });
@@ -78,7 +82,7 @@ writeFileSync("worker/public/_headers", [
 // Downloadable extension: a zip whose single folder is what "Load unpacked" wants.
 rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist", { recursive: true });
-cpSync("extension/dist", "dist/backrow-extension", { recursive: true });
+cpSync(OUT, "dist/backrow-extension", { recursive: true });
 execFileSync("zip", ["-qr", "-X", "backrow-extension.zip", "backrow-extension"], { cwd: "dist" });
 cpSync("dist/backrow-extension.zip", "worker/public/backrow-extension.zip");
 

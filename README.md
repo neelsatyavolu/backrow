@@ -11,6 +11,14 @@ Free, open-source watch parties for **Netflix, Hulu, Peacock, YouTube** and **vi
 3. Open `chrome://extensions` and turn on **Developer mode**.
 4. Click **Load unpacked** and choose the folder.
 
+Or install from git, which makes updates a `git pull`:
+
+```sh
+git clone https://github.com/neelsatyavolu/backrow.git
+```
+
+Load unpacked the `backrow/extension/dist` folder. To update, run `git pull` in `backrow` and click the reload button on the Backrow card in `chrome://extensions`. No build step is needed: `extension/dist` is committed, and CI checks that it matches the source.
+
 To start a party, open a show, click the Backrow icon, press **Start party** and send the invite link. Everyone needs the extension, plus their own account on the streaming site. YouTube and your own videos need no account.
 
 To watch your own file, open [backrow.n3el.dev/host](https://backrow.n3el.dev/host) and pick it. Nothing is uploaded: your browser streams it peer-to-peer (WebRTC) to each friend, compressed live in high quality. Friends need no extension and can use any modern browser. Hosting needs Chrome, Edge or Firefox, and the tab has to stay open.
@@ -72,7 +80,7 @@ npm run typecheck
 BACKROW_SERVER=http://localhost:8787 npm run test:e2e   # live tests against a running server
 ```
 
-`npm run build` writes the extension to `extension/dist` (load it unpacked) and the zip to `dist/`. Set `BACKROW_SERVER` to build an extension that talks to your own server.
+`npm run build` writes the extension to `extension/dist` (load it unpacked) and the zip to `dist/`. Commit `extension/dist` along with source changes, or the CI check fails. Set `BACKROW_SERVER` to build an extension that talks to your own server; those builds go to `extension/dist-dev`, which git ignores, so the committed copy always points at backrow.n3el.dev.
 
 ### Self-host
 

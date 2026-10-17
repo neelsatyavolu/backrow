@@ -1,0 +1,109 @@
+{
+  "manifest_version": 3,
+  "name": "Backrow: watch parties",
+  "short_name": "Backrow",
+  "version": "0.3.0",
+  "description": "Free, end-to-end encrypted watch parties for Netflix, Hulu, Peacock and YouTube.",
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Backrow",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://www.netflix.com/*",
+    "https://www.hulu.com/*",
+    "https://www.peacocktv.com/*",
+    "https://www.youtube.com/*",
+    "https://m.youtube.com/*",
+    "https://backrow.n3el.dev/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.netflix.com/*",
+        "https://www.hulu.com/*",
+        "https://www.peacocktv.com/*",
+        "https://www.youtube.com/*",
+        "https://m.youtube.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "page.css"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.netflix.com/*"
+      ],
+      "js": [
+        "netflix-main.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://www.hulu.com/*"
+      ],
+      "js": [
+        "hulu-main.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://www.netflix.com/*",
+        "https://www.hulu.com/*",
+        "https://www.peacocktv.com/*",
+        "https://www.youtube.com/*",
+        "https://m.youtube.com/*"
+      ],
+      "js": [
+        "fullscreen-main.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://www.peacocktv.com/*"
+      ],
+      "js": [
+        "peacock-main.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://backrow.n3el.dev/p/*"
+      ],
+      "js": [
+        "join-bridge.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "minimum_chrome_version": "116"
+}

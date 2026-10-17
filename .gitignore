@@ -1,7 +1,7 @@
 node_modules
 .wrangler
-dist
-extension/dist
+/dist
+extension/dist-dev
 worker/public/
 .dev.vars
 *.zip
