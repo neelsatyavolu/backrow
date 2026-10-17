@@ -40,5 +40,14 @@ describe("protocol limits", () => {
     expect(parseClientMessage(JSON.stringify({ t: "chat", blob: big }))).toBeNull();
     expect(parseClientMessage(JSON.stringify({ t: "profile", profile: "A".repeat(13000) }))).toBeNull();
   });
+
+  it("fits a sealed WebRTC offer full of TURN relay candidates", async () => {
+    // A real offer with Cloudflare TURN on a laptop with a few interfaces.
+    const candidate = "a=candidate:1467250027 1 udp 41885439 104.30.150.212 49152 typ relay raddr 192.168.1.20 rport 54321 generation 0 network-id 1\r\n";
+    const sdp = "v=0\r\n".padEnd(6000, "x") + candidate.repeat(150);
+    expect(sdp.length).toBeLessThan(34000);
+    const blob = await sealJson(await importKey(newKeyText()), { kind: "offer", sdp });
+    expect(parseClientMessage(JSON.stringify({ t: "signal", to: "abcdefgh", blob }))).not.toBeNull();
+  });
 });
 

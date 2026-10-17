@@ -31,7 +31,7 @@ function parseSignal(data: unknown): Signal | null {
   if (!data || typeof data !== "object") return null;
   const d = data as Record<string, unknown>;
   if (d.kind === "want") return { kind: "want" };
-  if ((d.kind === "offer" || d.kind === "answer") && typeof d.sdp === "string" && d.sdp.length < 11000) return { kind: d.kind, sdp: d.sdp };
+  if ((d.kind === "offer" || d.kind === "answer") && typeof d.sdp === "string" && d.sdp.length < 34000) return { kind: d.kind, sdp: d.sdp };
   return null;
 }
 

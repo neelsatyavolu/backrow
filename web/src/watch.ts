@@ -147,6 +147,8 @@ function makePanel(client: PartyClient, party: Party, profile: Profile, onLeave:
 
 async function startHost(party: Party, profile: Profile, hostKey: string): Promise<void> {
   gate.hidden = true;
+  // Before connecting: events that arrive while this loads would be missed.
+  const ice = await loadIceServers();
   const client = new PartyClient({ server: location.origin, roomId: party.roomId, keyText: party.keyText, hostKey, profile });
   let stream: MediaStream | null = null;
   let host: StreamHost | null = null;
@@ -172,7 +174,6 @@ async function startHost(party: Party, profile: Profile, hostKey: string): Promi
   };
   new PlayerUI(screen, video, stage, source);
 
-  const ice = await loadIceServers();
   debug("host ready", { ice: iceKinds(ice) });
   const ensureStream = (): StreamHost => {
     stream ??= capture();
@@ -288,6 +289,8 @@ function resumeHost(party: Party, hostKey: string, media: LocalVideo): void {
 
 async function startViewer(party: Party, profile: Profile): Promise<void> {
   gate.hidden = true;
+  // Before connecting: events that arrive while this loads would be missed.
+  const ice = await loadIceServers();
   const client = new PartyClient({ server: location.origin, roomId: party.roomId, keyText: party.keyText, profile });
   const panel = makePanel(client, party, profile, () => viewer.close());
   const ui = new PlayerUI(screen, video, stage, {
@@ -333,7 +336,6 @@ async function startViewer(party: Party, profile: Profile): Promise<void> {
       });
     });
 
-  const ice = await loadIceServers();
   debug("viewer ready", { ice: iceKinds(ice) });
   const viewer = new StreamViewer(client, ice, (stream) => {
     video.srcObject = stream;

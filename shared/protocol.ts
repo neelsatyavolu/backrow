@@ -8,9 +8,9 @@ export const LIMITS = {
   blob: 6000,
   /** Profiles can carry a small photo, so they get more room than other blobs. */
   profile: 12000,
-  /** WebRTC offers/answers carry a full SDP. */
-  signal: 12000,
-  frame: 16000,
+  /** WebRTC offers/answers carry a full SDP; TURN relay candidates make it long. */
+  signal: 48000,
+  frame: 56000,
   history: 150,
   members: 50,
 } as const;
