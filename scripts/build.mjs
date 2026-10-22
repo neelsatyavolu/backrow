@@ -27,6 +27,7 @@ await build({
     "hulu-main": "extension/src/hulu-main.ts",
     "fullscreen-main": "extension/src/fullscreen-main.ts",
     "peacock-main": "extension/src/peacock-main.ts",
+    "disney-main": "extension/src/disney-main.ts",
     "join-bridge": "extension/src/join-bridge.ts",
     popup: "extension/src/popup.ts",
   },
@@ -34,13 +35,13 @@ await build({
   format: "iife",
   define,
 });
-const sites = ["https://www.netflix.com/*", "https://www.hulu.com/*", "https://www.peacocktv.com/*", "https://www.youtube.com/*", "https://m.youtube.com/*"];
+const sites = ["https://www.netflix.com/*", "https://www.hulu.com/*", "https://www.peacocktv.com/*", "https://www.youtube.com/*", "https://m.youtube.com/*", "https://www.primevideo.com/*", "https://play.hbomax.com/*", "https://www.disneyplus.com/*"];
 const manifest = {
   manifest_version: 3,
   name: "Backrow: watch parties",
   short_name: "Backrow",
   version: pkg.version,
-  description: "Free, end-to-end encrypted watch parties for Netflix, Hulu, Peacock and YouTube.",
+  description: "Free, end-to-end encrypted watch parties for Netflix, Hulu, Peacock, YouTube, Prime Video, HBO Max and Disney+.",
   icons: { 16: "icons/16.png", 32: "icons/32.png", 48: "icons/48.png", 128: "icons/128.png" },
   action: { default_popup: "popup.html", default_title: "Backrow", default_icon: { 16: "icons/16.png", 32: "icons/32.png" } },
   background: { service_worker: "background.js", type: "module" },
@@ -52,6 +53,7 @@ const manifest = {
     { matches: ["https://www.hulu.com/*"], js: ["hulu-main.js"], run_at: "document_start", world: "MAIN" },
     { matches: sites, js: ["fullscreen-main.js"], run_at: "document_start", world: "MAIN" },
     { matches: ["https://www.peacocktv.com/*"], js: ["peacock-main.js"], run_at: "document_start", world: "MAIN" },
+    { matches: ["https://www.disneyplus.com/*"], js: ["disney-main.js"], run_at: "document_start", world: "MAIN" },
     { matches: [`${SERVER}/p/*`, `${SERVER}/watch/*`, `${SERVER}/host`], js: ["join-bridge.js"], run_at: "document_start" },
   ],
   minimum_chrome_version: "116",

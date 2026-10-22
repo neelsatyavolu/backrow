@@ -3,7 +3,7 @@
   "name": "Backrow: watch parties",
   "short_name": "Backrow",
   "version": "0.4.0",
-  "description": "Free, end-to-end encrypted watch parties for Netflix, Hulu, Peacock and YouTube.",
+  "description": "Free, end-to-end encrypted watch parties for Netflix, Hulu, Peacock, YouTube, Prime Video, HBO Max and Disney+.",
   "icons": {
     "16": "icons/16.png",
     "32": "icons/32.png",
@@ -32,6 +32,9 @@
     "https://www.peacocktv.com/*",
     "https://www.youtube.com/*",
     "https://m.youtube.com/*",
+    "https://www.primevideo.com/*",
+    "https://play.hbomax.com/*",
+    "https://www.disneyplus.com/*",
     "https://backrow.n3el.dev/*"
   ],
   "content_scripts": [
@@ -41,7 +44,10 @@
         "https://www.hulu.com/*",
         "https://www.peacocktv.com/*",
         "https://www.youtube.com/*",
-        "https://m.youtube.com/*"
+        "https://m.youtube.com/*",
+        "https://www.primevideo.com/*",
+        "https://play.hbomax.com/*",
+        "https://www.disneyplus.com/*"
       ],
       "js": [
         "content.js"
@@ -77,7 +83,10 @@
         "https://www.hulu.com/*",
         "https://www.peacocktv.com/*",
         "https://www.youtube.com/*",
-        "https://m.youtube.com/*"
+        "https://m.youtube.com/*",
+        "https://www.primevideo.com/*",
+        "https://play.hbomax.com/*",
+        "https://www.disneyplus.com/*"
       ],
       "js": [
         "fullscreen-main.js"
@@ -91,6 +100,16 @@
       ],
       "js": [
         "peacock-main.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://www.disneyplus.com/*"
+      ],
+      "js": [
+        "disney-main.js"
       ],
       "run_at": "document_start",
       "world": "MAIN"

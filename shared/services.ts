@@ -1,4 +1,4 @@
-export const STREAMING_SERVICES = ["netflix", "hulu", "peacock", "youtube"] as const;
+export const STREAMING_SERVICES = ["netflix", "hulu", "peacock", "youtube", "prime", "hbomax", "disney"] as const;
 export type StreamingService = (typeof STREAMING_SERVICES)[number];
 
 export interface StreamingVideo {
@@ -21,6 +21,9 @@ export const SERVICE_LABELS: Record<VideoRef["service"], string> = {
   hulu: "Hulu",
   peacock: "Peacock",
   youtube: "YouTube",
+  prime: "Prime Video",
+  hbomax: "HBO Max",
+  disney: "Disney+",
   local: "Streamed from the host",
 };
 
@@ -34,6 +37,11 @@ const HOSTS: Record<string, StreamingService> = {
   "www.youtube.com": "youtube",
   "youtube.com": "youtube",
   "m.youtube.com": "youtube",
+  "www.primevideo.com": "prime",
+  "primevideo.com": "prime",
+  "play.hbomax.com": "hbomax",
+  "www.disneyplus.com": "disney",
+  "disneyplus.com": "disney",
 };
 
 export function serviceForHost(host: string): StreamingService | null {
@@ -66,6 +74,24 @@ export function parseVideoUrl(input: string): StreamingVideo | null {
     if (!m) return null;
     const id = m[1]!.replace(/\/+$/, "");
     return { service, id, url: `https://www.peacocktv.com/watch/playback/${id}` };
+  }
+  if (service === "prime") {
+    // /detail/<id>, /detail/<slug>/<id>, /region/eu/detail/<id>/ref=..., /dp/<id>
+    const m = path.match(/\/(?:detail|dp)\/(?:[^/]+\/)?([0-9A-Z]{10,40})(?:\/|$)/);
+    return m ? { service, id: m[1]!, url: `https://www.primevideo.com/detail/${m[1]}` } : null;
+  }
+  if (service === "hbomax") {
+    const m = path.match(/^\/video\/watch\/([0-9a-f-]{36})\/([0-9a-f-]{36})/i);
+    if (!m) return null;
+    const id = `${m[1]}/${m[2]}`.toLowerCase();
+    return { service, id, url: `https://play.hbomax.com/video/watch/${id}` };
+  }
+  if (service === "disney") {
+    // An optional locale prefix: /play/<id> or /en-gb/play/<id>
+    const m = path.match(/^(?:\/[a-z]{2}(?:-[a-z]{2})?)?\/play\/([0-9a-f-]{36})(?:\/|$)/i);
+    if (!m) return null;
+    const id = m[1]!.toLowerCase();
+    return { service, id, url: `https://www.disneyplus.com/play/${id}` };
   }
   const v = path === "/watch" ? url.searchParams.get("v") : null;
   if (v && /^[A-Za-z0-9_-]{6,20}$/.test(v)) {

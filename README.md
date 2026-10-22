@@ -1,6 +1,6 @@
 # Backrow
 
-Free, open-source watch parties for **Netflix, Hulu, Peacock, YouTube** and **videos streamed from your own computer**. Play, pause and seek stay in sync for everyone, and the chat on the side is end-to-end encrypted. It runs on Cloudflare's free plan.
+Free, open-source watch parties for **Netflix, Hulu, Peacock, YouTube, Prime Video, HBO Max, Disney+** and **videos streamed from your own computer**. Play, pause and seek stay in sync for everyone, and the chat on the side is end-to-end encrypted. It runs on Cloudflare's free plan.
 
 **Live:** https://backrow.n3el.dev
 
@@ -104,8 +104,9 @@ BACKROW_SERVER=https://your.domain npm run deploy
 ## Limits and known gaps
 
 - The extension supports Chromium browsers only. Firefox and Safari can join your-own-video parties in the browser.
-- All four services were tested end to end with two separate browser profiles (Google Chrome for the DRM services): Netflix, Hulu, Peacock and YouTube, plus peer-to-peer streaming of your own videos. The tests covered pause, play, seeks from either side (including paused seeks), and steady playback, which held within about 0.3 s.
-- Netflix and Hulu are driven through their own player APIs (`netflix-main.ts`, `hulu-main.ts`). Netflix errors if `currentTime` is written directly. Hulu only buffers a little ahead, so a plain seek gets clamped, and its element clock runs a few seconds off the content clock.
+- Netflix, Hulu, Peacock and YouTube were tested end to end with two separate browser profiles (Google Chrome for the DRM services): Netflix, Hulu, Peacock and YouTube, plus peer-to-peer streaming of your own videos. The tests covered pause, play, seeks from either side (including paused seeks), and steady playback, which held within about 0.3 s.
+- Netflix, Hulu and Disney+ are driven through their own player APIs (`netflix-main.ts`, `hulu-main.ts`, `disney-main.ts`). Netflix errors if `currentTime` is written directly. Hulu only buffers a little ahead, so a plain seek gets clamped, and its element clock runs a few seconds off the content clock. Disney+'s element clock is relative to its stream buffer, so Backrow reads and seeks the show position through Disney's player.
+- Prime Video, HBO Max and Disney+ support is new and has not been tested end to end yet. Ads on those three are not detected, so an ad-supported plan can pull viewers apart during a break. Prime Video plays every episode of a season on the same page, so the party can't follow an episode change there: everyone picks the episode by hand. Prime Video works on primevideo.com, not amazon.com/gp/video.
 - Hulu ads play in a separate player and are detected. Peacock stitches ads into the stream, so Backrow reads Peacock's ad-break list and syncs on ad-free show time; viewers with different ads stay on the same scene. YouTube ads pause syncing until they end.
 - The resize-beside-chat layout was verified on Netflix, Hulu and Peacock (and fullscreen on Netflix). YouTube uses a lighter rule because its page scrolls; that layout hasn't been checked in a browser yet.
 - Your-own-video streaming uses Cloudflare STUN only for now. Friends on strict networks (some corporate, school or mobile carriers) may fail to connect until a TURN relay is configured (set the `TURN_KEY_ID` and `TURN_KEY_TOKEN` secrets). The host's upload speed limits how many people can watch: about 2–5 at 1080p on a typical home connection.
@@ -113,4 +114,4 @@ BACKROW_SERVER=https://your.domain npm run deploy
 
 ## License
 
-[MIT](LICENSE). Backrow is not affiliated with Netflix, Hulu, Peacock or YouTube.
+[MIT](LICENSE). Backrow is not affiliated with Netflix, Hulu, Peacock, YouTube, Amazon, HBO Max or Disney.

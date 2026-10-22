@@ -158,7 +158,7 @@ function render(status: PopupStatus): void {
   if (!status.supported) {
     view.append(
       el("p", "title", "Open a video to start a party"),
-      el("p", "meta", "Backrow works on Netflix, Hulu, Peacock and YouTube. To watch your own file, stream it from the Backrow site."),
+      el("p", "meta", "Backrow works on Netflix, Hulu, Peacock, YouTube, Prime Video, HBO Max and Disney+. To watch your own file, stream it from the Backrow site."),
     );
     return;
   }

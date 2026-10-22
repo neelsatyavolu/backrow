@@ -1,4 +1,4 @@
-// Content script on Netflix, Hulu, Peacock and YouTube: mounts the party
+// Content script on each supported streaming site: mounts the party
 // panel and keeps the site's player in sync. The connection itself lives in
 // the background worker so it survives page loads.
 
@@ -6,7 +6,7 @@ import type { PartyEvent, RoomSnapshot } from "../../shared/party-client";
 import type { Profile } from "../../shared/payload";
 import { remoteLog, type RemoteLog } from "../../shared/remote-log";
 import { applyEvent } from "../../shared/room-mirror";
-import { parseVideoUrl, sameVideo, serviceForHost, SERVICE_LABELS, videoKey, type StreamingVideo, type VideoRef } from "../../shared/services";
+import { parseVideoUrl, sameVideo, serviceForHost, SERVICE_LABELS, STREAMING_SERVICES, videoKey, type StreamingVideo, type VideoRef } from "../../shared/services";
 import { SyncController, type SyncLink } from "../../shared/sync-controller";
 import { ChatPanel } from "../../shared/ui/panel";
 import { SERVER, type PortIn, type PortOut, type SessionInfo } from "./messages";
@@ -63,11 +63,17 @@ const link: SyncLink = {
   },
 };
 
+// Site names as they appear in page titles ("Watch Loki | Disney+").
+const SITE_NAMES = STREAMING_SERVICES.map((s) => SERVICE_LABELS[s].replace(/[+]/g, "\\+")).join("|");
+const TITLE_SUFFIX = new RegExp(`\\s*[-|•·]\\s*(${SITE_NAMES})\\s*$`, "i");
+const TITLE_PREFIX = new RegExp(`^(${SITE_NAMES})\\s*:\\s*`, "i");
+const SITE_ONLY = new RegExp(`^(${SITE_NAMES})$`, "i");
+
 function currentVideo(): StreamingVideo | null {
   const v = parseVideoUrl(location.href);
   if (!v) return null;
-  const title = document.title.replace(/\s*[-|]\s*(Netflix|Hulu|Peacock|YouTube)\s*$/i, "").trim();
-  return title && !/^(netflix|hulu|peacock|youtube)$/i.test(title) ? { ...v, title: title.slice(0, 200) } : v;
+  const title = document.title.replace(TITLE_SUFFIX, "").replace(TITLE_PREFIX, "").trim();
+  return title && !SITE_ONLY.test(title) ? { ...v, title: title.slice(0, 200) } : v;
 }
 
 /** Keystrokes typed into the panel must not trigger the site's player shortcuts. */

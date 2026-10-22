@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "license": "MIT",
-  "description": "Free, open-source, end-to-end encrypted watch parties for Netflix, Hulu, Peacock, YouTube and your own videos. Runs on Cloudflare.",
+  "description": "Free, open-source, end-to-end encrypted watch parties for Netflix, Hulu, Peacock, YouTube, Prime Video, HBO Max, Disney+ and your own videos. Runs on Cloudflare.",
   "scripts": {
     "build": "node scripts/build.mjs",
     "dev": "npm run build && wrangler dev --config worker/wrangler.jsonc",

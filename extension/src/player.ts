@@ -1,10 +1,11 @@
-// Player adapters for each streaming site. YouTube and Peacock expose a normal
-// <video> element. Netflix and Hulu must be driven through their own player
-// APIs, reached through small scripts in the page's main world
-// (netflix-main.ts, hulu-main.ts):
+// Player adapters for each streaming site. YouTube, Peacock, Prime Video and
+// HBO Max expose a normal <video> element. Netflix, Hulu and Disney+ must be
+// driven through their own player APIs, reached through small scripts in the
+// page's main world (netflix-main.ts, hulu-main.ts, disney-main.ts):
 // - Netflix throws a playback error when currentTime is written directly.
 // - Hulu only buffers ahead a little, so a direct seek past the buffer is
 //   clamped, and its element clock runs a few seconds off the content clock.
+// - Disney+'s element clock is relative to its stream buffer, not the show.
 // Peacock stitches ads into the stream; peacock-main.ts publishes the ad
 // breaks so positions here are always ad-free content time.
 
@@ -15,10 +16,10 @@ import type { PlayerAdapter, PlayerEvent, PlayerSnapshot } from "../../shared/sy
 const EVENTS: PlayerEvent[] = ["play", "pause", "seeking", "seeked", "ratechange"];
 
 /** The main video on the page: the largest loaded one, preferring one that is playing. */
-export function findVideo(): HTMLVideoElement | null {
+export function findVideo(root: ParentNode = document): HTMLVideoElement | null {
   let best: HTMLVideoElement | null = null;
   let bestScore = 0;
-  for (const v of Array.from(document.querySelectorAll("video"))) {
+  for (const v of Array.from(root.querySelectorAll("video"))) {
     if (v.readyState === 0 || Number.isNaN(v.duration) || v.duration <= 0) continue;
     const r = v.getBoundingClientRect();
     const score = r.width * r.height * (v.paused ? 1 : 2);
@@ -31,9 +32,10 @@ export function findVideo(): HTMLVideoElement | null {
 }
 
 type Command = "seek" | "play" | "pause";
+type Bridge = "netflix" | "hulu" | "disney";
 
 /** Sends a command to the main-world bridge for sites that need their own API. */
-function pageCommand(service: "netflix" | "hulu", cmd: Command, seconds = 0): void {
+function pageCommand(service: Bridge, cmd: Command, seconds = 0): void {
   document.dispatchEvent(new CustomEvent(`backrow:${service}`, { detail: JSON.stringify({ cmd, seconds }) }));
 }
 
@@ -56,10 +58,10 @@ interface Site {
   video(): HTMLVideoElement | null;
   /** Seek target on the element's own clock for a content position. */
   toElement?(content: number): number;
-  /** Content position, which can differ from the element clock (Hulu). */
+  /** Content position, which can differ from the element clock (Hulu, Disney+). */
   position(v: HTMLVideoElement): number;
   duration(v: HTMLVideoElement): number;
-  bridge: "netflix" | "hulu" | null;
+  bridge: Bridge | null;
   canNudge: boolean;
   inAd(): boolean;
 }
@@ -100,6 +102,28 @@ function site(service: StreamingService): Site {
           const v = findVideo();
           return !!v && streamToContent(v.currentTime, peacockTimeline().breaks).inAd;
         },
+      };
+    case "prime": {
+      // Only the player overlay, not the trailer that autoplays behind it.
+      const video = () => {
+        const root = document.querySelector("#dv-web-player, .webPlayerSDKContainer");
+        return root ? findVideo(root) : null;
+      };
+      return { ...plain, video, bridge: null, canNudge: true, inAd: () => false };
+    }
+    case "hbomax":
+      return { ...plain, bridge: null, canNudge: true, inAd: () => false };
+    case "disney":
+      return {
+        video: () => {
+          const root = document.querySelector("disney-web-player");
+          return root ? findVideo(root) : findVideo();
+        },
+        position: (v) => v.currentTime - (Number(document.documentElement.dataset.backrowDisneyOffset) || 0),
+        duration: (v) => Number(document.documentElement.dataset.backrowDisneyDuration) || plain.duration(v),
+        bridge: "disney",
+        canNudge: true,
+        inAd: () => false,
       };
   }
 }

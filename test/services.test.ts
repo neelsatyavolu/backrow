@@ -14,6 +14,29 @@ describe("parseVideoUrl", () => {
     expect(parseVideoUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10")?.id).toBe("dQw4w9WgXcQ");
   });
 
+  it("recognises Prime Video detail pages in their different shapes", () => {
+    const boys = { service: "prime", id: "0KRGHGZCHKS920ZQGY5LBRF7MA", url: "https://www.primevideo.com/detail/0KRGHGZCHKS920ZQGY5LBRF7MA" };
+    expect(parseVideoUrl("https://www.primevideo.com/detail/0KRGHGZCHKS920ZQGY5LBRF7MA/ref=atv_hm_hom_c_1?autoplay=1")).toEqual(boys);
+    expect(parseVideoUrl("https://www.primevideo.com/detail/The-Boys/0KRGHGZCHKS920ZQGY5LBRF7MA")).toEqual(boys);
+    expect(parseVideoUrl("https://www.primevideo.com/region/eu/detail/0KRGHGZCHKS920ZQGY5LBRF7MA/")).toEqual(boys);
+    expect(parseVideoUrl("https://www.primevideo.com/-/es/detail/0KRGHGZCHKS920ZQGY5LBRF7MA")).toEqual(boys);
+    expect(parseVideoUrl("https://www.primevideo.com/dp/B07FMHTRFR")?.id).toBe("B07FMHTRFR");
+    expect(parseVideoUrl("https://www.primevideo.com/storefront/home")).toBeNull();
+  });
+
+  it("recognises HBO Max and Disney+ watch pages", () => {
+    const edit = "2b4a0f6c-3b0e-4b8e-9b1a-5c6d7e8f9a0b";
+    const show = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
+    expect(parseVideoUrl(`https://play.hbomax.com/video/watch/${show}/${edit.toUpperCase()}?foo=1`)).toEqual({
+      service: "hbomax", id: `${show}/${edit}`, url: `https://play.hbomax.com/video/watch/${show}/${edit}`,
+    });
+    expect(parseVideoUrl(`https://play.hbomax.com/show/${show}`)).toBeNull();
+    const play = { service: "disney", id: edit, url: `https://www.disneyplus.com/play/${edit}` };
+    expect(parseVideoUrl(`https://www.disneyplus.com/play/${edit}`)).toEqual(play);
+    expect(parseVideoUrl(`https://www.disneyplus.com/en-gb/play/${edit}`)).toEqual(play);
+    expect(parseVideoUrl("https://www.disneyplus.com/browse/entity-123")).toBeNull();
+  });
+
   it("rejects other pages and hosts", () => {
     expect(parseVideoUrl("https://www.netflix.com/browse")).toBeNull();
     expect(parseVideoUrl("http://www.netflix.com/watch/1")).toBeNull();
