@@ -41,7 +41,7 @@ const manifest = {
   name: "Backrow: watch parties",
   short_name: "Backrow",
   version: pkg.version,
-  description: "Free, end-to-end encrypted watch parties for Netflix, Hulu, Peacock, YouTube, Prime Video, HBO Max and Disney+.",
+  description: "Watch shows in sync with friends, with an end-to-end encrypted chat beside the video.",
   icons: { 16: "icons/16.png", 32: "icons/32.png", 48: "icons/48.png", 128: "icons/128.png" },
   action: { default_popup: "popup.html", default_title: "Backrow", default_icon: { 16: "icons/16.png", 32: "icons/32.png" } },
   background: { service_worker: "background.js", type: "module" },
