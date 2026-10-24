@@ -30,7 +30,21 @@ html.backrow-watch:not([data-backrow-site="youtube"]) body {
   overflow: hidden !important;
 }
 
-/* YouTube scrolls normally, but in (page-level) fullscreen it pins its player too. */
+/*
+ * YouTube scrolls normally, so no transform. Its whole app (ytd-app) is
+ * position: absolute, which sizes against the viewport unless body is
+ * positioned; without this the player runs under the panel, most visibly in
+ * theater mode. The masthead is position: fixed and needs narrowing itself.
+ */
+html.backrow-watch[data-backrow-site="youtube"] body {
+  position: relative !important;
+}
+
+html.backrow-watch.backrow-open:not(.backrow-fs)[data-backrow-site="youtube"] #masthead-container {
+  width: calc(100% - 340px) !important;
+}
+
+/* In (page-level) fullscreen YouTube pins its player too. */
 html.backrow-watch[data-backrow-site="youtube"]:fullscreen body {
   transform: translateZ(0);
   height: 100vh !important;
