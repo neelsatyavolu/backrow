@@ -29,7 +29,7 @@ To watch your own file, open [backrow.n3el.dev/host](https://backrow.n3el.dev/ho
 - Next episode and autoplay take the party along with you.
 - A chat with reactions, typing indicators, join/leave notices and "Maya paused at 41:02" events.
 - An optional host-only mode, where only the host controls playback.
-- Stream your own file straight from your browser, with a custom player that has a seek preview, volume, keyboard shortcuts and fullscreen with the chat alongside.
+- Stream your own file straight from your browser, with a custom player that has a seek preview, volume, captions (add an SRT or WebVTT file), keyboard shortcuts and fullscreen with the chat alongside.
 - Profiles with a display name, color and optional photo, all end-to-end encrypted like the chat.
 - The video shrinks beside the chat (animated) instead of being covered, including in fullscreen.
 - Peacock sync stays on the show even when viewers get different ad breaks.
@@ -61,13 +61,13 @@ Emails (a 6-digit code to confirm your address or reset your password) are sent 
 ## How it works
 
 ```
-extension/   Chrome MV3 extension
+extension/src/  Chrome MV3 extension
   background.ts   one encrypted WebSocket per tab (survives page loads)
   content.ts      sidebar + sync on streaming sites
   player.ts       per-site player adapters
-  netflix-main.ts Netflix seeks through its own player API (main world)
+  *-main.ts       page-context scripts: Netflix, Hulu and Disney+ player APIs, Peacock's ad breaks
 web/         landing page, invite page, host/viewer player, WebRTC streaming
-worker/      Cloudflare Worker
+worker/src/  Cloudflare Worker
   room.ts         one Durable Object per party (WebSocket hibernation)
   room-logic.ts   pure relay/permission rules (unit tested)
   account.ts      optional accounts (D1 + Resend email codes)
@@ -77,6 +77,8 @@ shared/      protocol, crypto, sync math, chat panel (used by all of the above)
 ## Debugging sync
 
 To see every sync decision in the console of a streaming tab, run `localStorage.setItem("backrow:debug", "1")` there and reload. Please include that output when reporting a sync bug.
+
+The **Send debug logs** toggle in the extension popup (off by default) sends sync traces and WebRTC connection details, never chat, keys or names, to Backrow's server logs for troubleshooting.
 
 ## Develop
 
