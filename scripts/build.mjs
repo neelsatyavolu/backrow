@@ -72,13 +72,16 @@ await build({
   outdir: "worker/public",
   format: "esm",
 });
+// Theme script runs in <head> before first paint, so it must be a classic script.
+await build({ ...common, entryPoints: { theme: "web/src/theme.ts" }, outdir: "worker/public", format: "iife" });
 for (const f of ["index.html", "join.html", "watch.html", "account.html", "site.css", "icon.svg", "og.png"]) cpSync(`web/${f}`, `worker/public/${f}`);
+cpSync("web/fonts", "worker/public/fonts", { recursive: true });
 writeFileSync("worker/public/_headers", [
   "/*",
   "  X-Content-Type-Options: nosniff",
   "  Referrer-Policy: no-referrer",
   "  Permissions-Policy: camera=(), microphone=(), geolocation=()",
-  "  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; worker-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+  "  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; worker-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
   "",
 ].join("\n"));
 // Downloadable extension: a zip whose single folder is what "Load unpacked" wants.

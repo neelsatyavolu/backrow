@@ -13,21 +13,26 @@
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Newsreader:ital,wght@0,400;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400&display=swap">
+<link rel="preload" href="/fonts/GeistSerifVF.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/site.css">
+<script src="/theme.js"></script>
 </head>
 <body>
-<div class="wrap">
-  <nav class="nav">
-    <a class="brand" href="/">Backrow<span class="caret"></span></a>
+<nav class="nav">
+  <div class="wrap">
+    <a class="brand" href="/"><i></i>Backrow</a>
     <div class="navlinks">
       <a class="link" href="#install">Install</a>
       <a class="link" href="#upload">Your video</a>
       <a class="link" href="#privacy">Privacy</a>
       <a class="link" href="https://github.com/neelsatyavolu/backrow">GitHub</a>
-      <a class="link" href="/account">Account</a>
+      <a class="link keep" href="/account">Account</a>
+      <button class="icon-btn" id="theme" type="button" aria-label="Change theme" title="Theme: system"></button>
     </div>
-  </nav>
+  </div>
+</nav>
+<div class="wrap">
 
   <header class="hero split">
     <div class="hero-copy">
@@ -38,7 +43,7 @@
         <a class="btn accent" href="/backrow-extension.zip" download>Download for Chrome</a>
         <a class="btn ghost" href="/host">Stream your own video</a>
       </div>
-      <p class="meta mono" id="version">Chrome, Edge, Brave, Arc · MIT licensed</p>
+      <p class="meta" id="version">Chrome, Edge, Brave, Arc · MIT licensed</p>
     </div>
 
     <figure class="mock" aria-label="Backrow running next to a video">
@@ -110,7 +115,7 @@
       <h2>Stream a file from your computer</h2>
       <p class="meta">Nothing is uploaded. Your browser plays the file and streams it straight to each friend, compressed live in high quality and encrypted end to end. Friends watch in any browser, phones included, with no extension. Keep the tab open while you watch. Works best for small groups. Hosting needs Chrome, Edge or Firefox.</p>
     </div>
-    <div><a class="btn accent" href="/host">Choose a video to stream</a></div>
+    <div><a class="btn" href="/host">Choose a video to stream</a></div>
   </section>
 
   <section class="section" id="privacy">

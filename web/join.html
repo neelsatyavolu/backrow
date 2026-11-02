@@ -7,12 +7,14 @@
 <title>Backrow · Join the party</title>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&family=Newsreader:ital,wght@0,400;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400&display=swap">
+<link rel="preload" href="/fonts/GeistSerifVF.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/site.css">
+<script src="/theme.js"></script>
 </head>
 <body>
+<nav class="nav"><div class="wrap"><a class="brand" href="/"><i></i>Backrow</a><button class="icon-btn" id="theme" type="button" aria-label="Change theme" title="Theme: system"></button></div></nav>
 <div class="wrap">
-  <nav class="nav"><a class="brand" href="/">Backrow<span class="caret"></span></a></nav>
   <main class="center" id="main" aria-live="polite"><span class="label">Opening invite</span></main>
 </div>
 <script type="module" src="/join.js"></script>
