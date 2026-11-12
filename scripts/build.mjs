@@ -74,8 +74,10 @@ await build({
 });
 // Theme script runs in <head> before first paint, so it must be a classic script.
 await build({ ...common, entryPoints: { theme: "web/src/theme.ts" }, outdir: "worker/public", format: "iife" });
-for (const f of ["index.html", "join.html", "watch.html", "account.html", "site.css", "icon.svg", "og.png"]) cpSync(`web/${f}`, `worker/public/${f}`);
+for (const f of ["index.html", "join.html", "watch.html", "account.html", "site.css", "home.css", "icon.svg", "og.png"]) cpSync(`web/${f}`, `worker/public/${f}`);
 cpSync("web/fonts", "worker/public/fonts", { recursive: true });
+// The landing page's design kit (system, motion, layout, icons, moments, diagrams).
+cpSync("web/assets", "worker/public/assets", { recursive: true });
 writeFileSync("worker/public/_headers", [
   "/*",
   "  X-Content-Type-Options: nosniff",
